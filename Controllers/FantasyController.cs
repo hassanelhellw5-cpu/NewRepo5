@@ -178,6 +178,51 @@ namespace QemmaProject.Controllers
             return Ok(new { message = "Fantasy lineup saved.", entry.Id, picked = ids.Count });
         }
 
+
+        [HttpPost("contests/{contestId:int}/transfers")]
+        public async Task<IActionResult> TransferPlayer(int contestId, [FromBody] FantasyTransferRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.UserId)) return BadRequest(new { message = "UserId is required." });
+            if (!this.IsSelfOrAdmin(request.UserId)) return this.ForbiddenUser();
+            if (request.OutPlayerId == request.InPlayerId) return BadRequest(new { message = "OutPlayerId and InPlayerId must be different." });
+
+            var contest = await _context.FantasyContests.FirstOrDefaultAsync(c => c.Id == contestId);
+            if (contest == null) return NotFound(new { message = "Contest not found." });
+
+            var entry = await _context.FantasyEntries.Include(e => e.Picks).FirstOrDefaultAsync(e => e.FantasyContestId == contestId && e.UserId == request.UserId);
+            if (entry == null) return NotFound(new { message = "Save your five-player lineup before making transfers." });
+            var outgoing = entry.Picks.FirstOrDefault(p => p.PlayerId == request.OutPlayerId);
+            if (outgoing == null) return BadRequest(new { message = "Outgoing player is not in this lineup." });
+            if (entry.Picks.Any(p => p.PlayerId == request.InPlayerId)) return BadRequest(new { message = "Incoming player is already in this lineup." });
+            if (!await _context.Players.AnyAsync(p => p.Id == request.InPlayerId)) return NotFound(new { message = "Incoming player not found." });
+
+            var currentRound = Math.Max(1, contest.KnockoutCurrentRound == 0 ? 1 : contest.KnockoutCurrentRound);
+            if (entry.LastTransferRound != currentRound)
+            {
+                var rolled = entry.LastTransferRound == 0 ? entry.FreeTransfersBanked : entry.FreeTransfersBanked + 1;
+                entry.FreeTransfersBanked = Math.Clamp(rolled, 1, 5);
+                entry.TransfersMadeThisRound = 0;
+                entry.LastTransferRound = currentRound;
+            }
+
+            entry.TransfersMadeThisRound += 1;
+            if (entry.FreeTransfersBanked > 0)
+            {
+                entry.FreeTransfersBanked -= 1;
+            }
+            else
+            {
+                entry.TransferPenaltyPoints += 4;
+                entry.TotalPoints -= 4;
+            }
+
+            outgoing.PlayerId = request.InPlayerId;
+            outgoing.Points = 0;
+            entry.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Fantasy transfer saved.", entry.Id, entry.FreeTransfersBanked, entry.TransfersMadeThisRound, entry.TransferPenaltyPoints, entry.TotalPoints });
+        }
+
         [Authorize(Roles = "Admin")]
         [HttpPost("contests/{contestId:int}/score")]
         public async Task<IActionResult> ScoreContest(int contestId)
@@ -203,6 +248,9 @@ namespace QemmaProject.Controllers
                 {
                     entryId = e.Id,
                     e.TotalPoints,
+                    e.FreeTransfersBanked,
+                    e.TransfersMadeThisRound,
+                    e.TransferPenaltyPoints,
                     e.Role,
                     e.KnockoutSeed,
                     e.KnockoutRound,
@@ -222,7 +270,8 @@ namespace QemmaProject.Controllers
                         e.FantasyContest.Format,
                         e.FantasyContest.KnockoutCurrentRound
                     },
-                    picks = e.Picks.Select(p => new { p.PlayerId, p.Player.Name, p.Player.TeamName, p.Player.Position, p.Points })
+                    lineupRules = new { requiredPlayers = 5, freeTransferPerRound = 1, bankedTransferCap = 5, extraTransferPenalty = 4 },
+                    picks = e.Picks.Select(p => new { p.PlayerId, p.Player.Name, p.Player.TeamName, p.Player.Position, p.Player.ShirtNumber, p.Player.ImageUrl, p.Points })
                 })
                 .ToListAsync();
 
@@ -241,7 +290,7 @@ namespace QemmaProject.Controllers
                 .ThenByDescending(e => e.KnockoutRound)
                 .ThenByDescending(e => e.TotalPoints)
                 .ThenBy(e => e.CreatedAt)
-                .Select(e => new { e.Id, e.UserId, userName = e.User.UserName, e.Role, e.TotalPoints, e.KnockoutSeed, e.KnockoutRound, e.IsKnockoutEliminated, picks = e.Picks.Select(p => new { p.PlayerId, p.Player.Name, p.Points }) })
+                .Select(e => new { e.Id, e.UserId, userName = e.User.UserName, e.Role, e.TotalPoints, e.KnockoutSeed, e.KnockoutRound, e.IsKnockoutEliminated, transferSummary = new { e.FreeTransfersBanked, e.TransfersMadeThisRound, e.TransferPenaltyPoints }, picks = e.Picks.Select(p => new { p.PlayerId, p.Player.Name, p.Player.TeamName, p.Player.Position, p.Player.ImageUrl, p.Points }) })
                 .ToListAsync();
             return Ok(new { contest.Id, contest.Name, contest.Code, contest.Format, contest.KnockoutCurrentRound, leaderboard = rows });
         }

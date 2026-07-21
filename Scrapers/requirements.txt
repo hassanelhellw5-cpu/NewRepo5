@@ -3,3 +3,4 @@ beautifulsoup4
 lxml
 selenium
 webdriver-manager
+Appium-Python-Client>=4.0.0

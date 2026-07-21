@@ -88,6 +88,13 @@ SCORES365_BASKETBALL_SPORT_ID = os.getenv("SCORES365_BASKETBALL_SPORT_ID", "2").
 SCORES365_TENNIS_SPORT_ID = os.getenv("SCORES365_TENNIS_SPORT_ID", "3").strip()
 SCORES365_LANG_ID = os.getenv("SCORES365_LANG_ID", "27").strip()  # Arabic
 
+FORMULA1_ENABLED = os.getenv("FORMULA1_ENABLED", "true").strip().lower() != "false"
+FORMULA1_SEASON = os.getenv("FORMULA1_SEASON", str(_utc_now().year) if "_utc_now" in globals() else str(datetime.now().year)).strip()
+FORMULA1_SCHEDULE_API_URL = os.getenv("FORMULA1_SCHEDULE_API_URL", f"https://api.jolpi.ca/ergast/f1/{FORMULA1_SEASON}/races/").strip()
+FORMULA1_RESULTS_API_URL = os.getenv("FORMULA1_RESULTS_API_URL", f"https://api.jolpi.ca/ergast/f1/{FORMULA1_SEASON}/results/").strip()
+FORMULA1_DRIVER_STANDINGS_API_URL = os.getenv("FORMULA1_DRIVER_STANDINGS_API_URL", f"https://api.jolpi.ca/ergast/f1/{FORMULA1_SEASON}/driverstandings/").strip()
+FORMULA1_CONSTRUCTOR_STANDINGS_API_URL = os.getenv("FORMULA1_CONSTRUCTOR_STANDINGS_API_URL", f"https://api.jolpi.ca/ergast/f1/{FORMULA1_SEASON}/constructorstandings/").strip()
+
 
 # ---------------------------------------------------------------------------
 # Shared helpers — imported by multisport_selenium_importer.py
@@ -395,6 +402,76 @@ def _scrape_365scores(sport_key: str, sport_id: str) -> list[dict[str, Any]]:
     print(f"[other_sports] {sport_key} 365Scores API: parsed {len(events)} events")
     return events
 
+
+# ---------------------------------------------------------------------------
+# Formula 1 import (Jolpica/Ergast-compatible JSON, date-aware schedule + results)
+# ---------------------------------------------------------------------------
+def _fetch_json(url: str) -> dict[str, Any]:
+    response = requests.get(url, headers=DEFAULT_HEADERS, timeout=TIMEOUT)
+    response.raise_for_status()
+    return response.json()
+
+
+def _f1_races_from_payload(data: dict[str, Any]) -> list[dict[str, Any]]:
+    return (((data.get("MRData") or {}).get("RaceTable") or {}).get("Races") or [])
+
+
+def _scrape_formula1() -> list[dict[str, Any]]:
+    target = _target_day().date()
+    races_by_round: dict[str, dict[str, Any]] = {}
+    try:
+        for race in _f1_races_from_payload(_fetch_json(FORMULA1_SCHEDULE_API_URL)):
+            if isinstance(race, dict):
+                races_by_round[str(race.get("round") or "")] = race
+    except Exception as exc:
+        print(f"[other_sports] formula1 schedule API: fetch failed: {exc}", file=sys.stderr)
+
+    results_by_round: dict[str, list[dict[str, Any]]] = {}
+    try:
+        for race in _f1_races_from_payload(_fetch_json(FORMULA1_RESULTS_API_URL)):
+            if isinstance(race, dict):
+                results_by_round[str(race.get("round") or "")] = race.get("Results") or []
+                races_by_round.setdefault(str(race.get("round") or ""), race)
+    except Exception as exc:
+        print(f"[other_sports] formula1 results API: fetch failed: {exc}", file=sys.stderr)
+
+    driver_standings = []
+    constructor_standings = []
+    try:
+        lists = (((_fetch_json(FORMULA1_DRIVER_STANDINGS_API_URL).get("MRData") or {}).get("StandingsTable") or {}).get("StandingsLists") or [])
+        driver_standings = (lists[0].get("DriverStandings") or []) if lists else []
+    except Exception as exc:
+        print(f"[other_sports] formula1 driver standings API: fetch failed: {exc}", file=sys.stderr)
+    try:
+        lists = (((_fetch_json(FORMULA1_CONSTRUCTOR_STANDINGS_API_URL).get("MRData") or {}).get("StandingsTable") or {}).get("StandingsLists") or [])
+        constructor_standings = (lists[0].get("ConstructorStandings") or []) if lists else []
+    except Exception as exc:
+        print(f"[other_sports] formula1 constructor standings API: fetch failed: {exc}", file=sys.stderr)
+
+    events: list[dict[str, Any]] = []
+    for round_id, race in races_by_round.items():
+        raw_date = f"{race.get('date')}T{race.get('time') or '12:00:00Z'}"
+        event_date = _parse_api_datetime(raw_date)
+        if event_date.date() != target and not results_by_round.get(round_id):
+            continue
+        circuit = race.get("Circuit") or {}
+        location = circuit.get("Location") or {}
+        title = _compact(race.get("raceName") or f"Formula 1 Round {round_id}")
+        results = []
+        participants = []
+        for result in results_by_round.get(round_id, []):
+            driver = result.get("Driver") or {}
+            constructor = result.get("Constructor") or {}
+            name = _compact(" ".join([driver.get("givenName") or "", driver.get("familyName") or ""]))
+            participants.append({"name": name, "teamName": _compact(constructor.get("name")), "country": _compact(driver.get("nationality")), "role": "driver", "metadataJson": json.dumps({"driverId": driver.get("driverId"), "code": driver.get("code"), "constructorId": constructor.get("constructorId")}, ensure_ascii=False)})
+            results.append({"participantName": name, "rank": int(result.get("position") or 0) or None, "score": str(result.get("points") or ""), "resultText": _compact(result.get("status") or ""), "metadataJson": json.dumps({"grid": result.get("grid"), "laps": result.get("laps"), "time": result.get("Time"), "fastestLap": result.get("FastestLap")}, ensure_ascii=False)})
+        metadata = {"round": round_id, "season": race.get("season"), "driverStandings": driver_standings[:20], "constructorStandings": constructor_standings[:20]}
+        events.append({"sportKey": "formula1", "externalId": f"jolpica-f1-{FORMULA1_SEASON}-{round_id}", "title": title, "competitionName": "Formula 1", "eventDate": event_date.isoformat() + "Z", "status": "Completed" if results else ("Live" if event_date.date() == _utc_now().date() else "Scheduled"), "time": event_date.strftime("%H:%M UTC"), "venue": _compact(circuit.get("circuitName")), "country": _compact(location.get("country")), "source": "Jolpica F1", "sourceUrl": race.get("url") or FORMULA1_SCHEDULE_API_URL, "participants": participants, "results": results, "streams": [], "liveUpdates": [], "metadataJson": json.dumps(metadata, ensure_ascii=False)})
+        if len(events) >= MAX_ITEMS_PER_SOURCE:
+            break
+    print(f"[other_sports] formula1 Jolpica API: parsed {len(events)} events")
+    return events
+
 # ---------------------------------------------------------------------------
 # Ice hockey import (ESPN JSON first, HTML fallback; no Selenium)
 # ---------------------------------------------------------------------------
@@ -573,6 +650,15 @@ def main() -> int:
             print(f"[other_sports] WARNING: tennis failed: {exc}")
     else:
         print("[other_sports] tennis disabled via TENNIS_ENABLED=false")
+
+    if FORMULA1_ENABLED:
+        try:
+            all_events.extend(_scrape_formula1())
+        except Exception as exc:
+            failures["formula1"] = str(exc)
+            print(f"[other_sports] WARNING: formula1 failed: {exc}")
+    else:
+        print("[other_sports] formula1 disabled via FORMULA1_ENABLED=false")
 
     if ICE_HOCKEY_ENABLED:
         try:

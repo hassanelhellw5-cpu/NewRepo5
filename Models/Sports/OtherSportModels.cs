@@ -19,6 +19,7 @@ namespace QemmaProject.Models.Sports
         public string Country { get; set; } = string.Empty;
         public string Source { get; set; } = string.Empty;
         public string SourceUrl { get; set; } = string.Empty;
+        public string MetadataJson { get; set; } = "{}";
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
         public virtual ICollection<OtherSportParticipant> Participants { get; set; } = new List<OtherSportParticipant>();
@@ -32,7 +33,7 @@ namespace QemmaProject.Models.Sports
         public int Id { get; set; }
         public int OtherSportEventId { get; set; }
 
-        // Not required in incoming JSON — it's the circular parent reference,
+        // Not required in incoming JSON ï¿½ it's the circular parent reference,
         // fixed up automatically by EF Core once this entity is attached to
         // its parent's Participants collection. [ValidateNever] stops ASP.NET
         // Core's model validation from rejecting payloads that omit it;

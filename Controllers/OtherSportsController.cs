@@ -90,7 +90,7 @@ namespace QemmaProject.Controllers
                 }
                 else
                 {
-                    existing.Title = incoming.Title; existing.CompetitionName = incoming.CompetitionName; existing.EventDate = incoming.EventDate; existing.Status = incoming.Status; existing.Time = incoming.Time; existing.Venue = incoming.Venue; existing.Country = incoming.Country; existing.Source = incoming.Source; existing.SourceUrl = incoming.SourceUrl; existing.UpdatedAt = DateTime.UtcNow;
+                    existing.Title = incoming.Title; existing.CompetitionName = incoming.CompetitionName; existing.EventDate = incoming.EventDate; existing.Status = incoming.Status; existing.Time = incoming.Time; existing.Venue = incoming.Venue; existing.Country = incoming.Country; existing.Source = incoming.Source; existing.SourceUrl = incoming.SourceUrl; existing.MetadataJson = incoming.MetadataJson; existing.UpdatedAt = DateTime.UtcNow;
                     ReplaceChildren(existing, incoming);
                 }
             }
@@ -181,6 +181,7 @@ namespace QemmaProject.Controllers
             e.Country,
             e.Source,
             e.SourceUrl,
+            e.MetadataJson,
             participants = e.Participants,
             results = e.Results,
             streams = e.Streams.Select(ToPublicStreamResponse),
