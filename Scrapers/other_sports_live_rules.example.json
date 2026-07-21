@@ -1,0 +1,19 @@
+[
+  {
+    "sportKey": "formula1",
+    "competitionName": "formula 1",
+    "titleContains": "grand prix",
+    "channelName": "Formula 1"
+  },
+  {
+    "sportKey": "tennis",
+    "competitionName": "wimbledon",
+    "titleContains": "centre court",
+    "channelName": "Tennis Centre Court"
+  },
+  {
+    "sportKey": "basketball",
+    "competitionName": "NBA",
+    "channelName": "NBA TV"
+  }
+]

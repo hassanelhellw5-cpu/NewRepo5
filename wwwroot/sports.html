@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>مركز مباريات قمة - البث المباشر</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        body { font-family: Tahoma; background: #1a1a1a; color: white; padding: 20px; }
+        .container { max-width: 1000px; margin: auto; }
+        .card { background: #2a2a2a; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #333; }
+        .match-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #444; padding-bottom: 10px; gap: 12px; }
+        .live-badge { background: red; padding: 2px 8px; border-radius: 4px; font-size: 12px; animation: blink 1s infinite; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        #video-container { width: 100%; aspect-ratio: 16/9; background: black; border-radius: 8px; overflow: hidden; margin-top: 15px; }
+        video { width: 100%; height: 100%; }
+        .server-list { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+        .server-btn { background: #007bff; border: none; color: white; padding: 8px 15px; border-radius: 4px; cursor: pointer; }
+        .server-btn:hover { background: #0056b3; }
+        .muted { color: #aaa; font-size: 13px; }
+        .error { color: #ff7777; }
+        .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 15px 0; }
+        .toolbar input, .toolbar select { background: #222; color: white; border: 1px solid #444; border-radius: 4px; padding: 8px; }
+        .sport-badge { background: #444; padding: 2px 8px; border-radius: 999px; font-size: 12px; margin-inline-start: 6px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>مركز قمة الرياضي ⚽</h1>
+        <div id="status" style="color: #4CAF50; font-size: 14px;">متصل بنظام التحديث اللحظي...</div>
+
+        <div class="card">
+            <div class="match-header">
+                <div>
+                    <strong id="player-title">اختار مباراة من القائمة</strong>
+                    <span class="live-badge">مباشر</span>
+                </div>
+                <div id="player-channel" class="muted"></div>
+            </div>
+
+            <div class="server-list">
+                <label class="muted" for="quality-select">الجودة:</label>
+                <select id="quality-select" class="server-btn" disabled>
+                    <option value="-1">Auto</option>
+                </select>
+            </div>
+            <div id="video-container">
+                <video id="video" controls playsinline></video>
+            </div>
+            <div id="player-error" class="error muted"></div>
+        </div>
+
+        <div class="toolbar">
+            <button id="prev-day-btn" class="server-btn" type="button">اليوم السابق</button>
+            <label class="muted" for="matches-date">اليوم:</label>
+            <input id="matches-date" type="date">
+            <button id="today-btn" class="server-btn" type="button">النهاردة</button>
+            <button id="next-day-btn" class="server-btn" type="button">اليوم التالي</button>
+            <label class="muted" for="sport-filter">الرياضة:</label>
+            <select id="sport-filter">
+                <option value="all">كل الرياضات</option>
+                <option value="football">كرة القدم</option>
+                <option value="basketball">كرة السلة</option>
+                <option value="tennis">التنس</option>
+                <option value="formula1">فورمولا 1</option>
+                <option value="ice_hockey">هوكي الجليد</option>
+            </select>
+            <button id="reload-btn" class="server-btn">تحديث</button>
+            <span id="date-hint" class="muted"></span>
+        </div>
+
+        <div id="matches-list"></div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const playerTitle = document.getElementById('player-title');
+        const playerChannel = document.getElementById('player-channel');
+        const playerError = document.getElementById('player-error');
+        const qualitySelect = document.getElementById('quality-select');
+        const matchesList = document.getElementById('matches-list');
+        const matchesDate = document.getElementById('matches-date');
+        const sportFilter = document.getElementById('sport-filter');
+        const reloadBtn = document.getElementById('reload-btn');
+        const prevDayBtn = document.getElementById('prev-day-btn');
+        const todayBtn = document.getElementById('today-btn');
+        const nextDayBtn = document.getElementById('next-day-btn');
+        const dateHint = document.getElementById('date-hint');
+        let currentHls = null;
+
+        function getStreamUrl(stream) {
+            return stream?.m3u8Url || stream?.m3U8Url || stream?.streamUrl || stream?.stream_url || '';
+        }
+
+        function resetQualitySelect() {
+            qualitySelect.innerHTML = '<option value="-1">Auto</option>';
+            qualitySelect.value = '-1';
+            qualitySelect.disabled = true;
+        }
+
+        function destroyCurrentHls() {
+            if (currentHls) {
+                currentHls.destroy();
+                currentHls = null;
+            }
+            resetQualitySelect();
+            video.removeAttribute('src');
+            video.load();
+        }
+
+        function playNextServer(streams, currentIndex, title, channel, reason = 'failed') {
+            const nextIndex = currentIndex + 1;
+            if (!Array.isArray(streams) || nextIndex >= streams.length) {
+                playerError.textContent = reason === 'ended'
+                    ? 'المباراة انتهت أو اللايف مقفول في الوقت الحالي.'
+                    : 'فشل كل السيرفرات المتاحة لهذا الماتش.';
+                destroyCurrentHls();
+                return;
+            }
+
+            const nextUrl = getStreamUrl(streams[nextIndex]);
+            playerError.textContent = reason === 'ended'
+                ? `السيرفر الحالي طلع لقطة منتهية، جاري تجربة سيرفر ${nextIndex + 1}...`
+                : `السيرفر الحالي فشل، جاري تجربة سيرفر ${nextIndex + 1}...`;
+            playStream(nextUrl, title, channel, streams, nextIndex);
+        }
+
+        function isShortEndedPlaylist(details) {
+            if (!details || details.live) return false;
+            const total = Number(details.totalduration || details.totalDuration || video.duration || 0);
+            return Number.isFinite(total) && total > 0 && total <= 120;
+        }
+
+        function playStream(url, title = '', channel = '', streams = [], currentIndex = 0) {
+            playerError.textContent = '';
+            playerTitle.textContent = title || 'بث مباشر';
+            playerChannel.textContent = channel || '';
+            destroyCurrentHls();
+
+            if (!url) {
+                playerError.textContent = 'لا يوجد رابط بث لهذه المباراة.';
+                return;
+            }
+
+            if (Hls.isSupported()) {
+                currentHls = new Hls({
+                    enableWorker: true,
+                    lowLatencyMode: true,
+                    liveDurationInfinity: true,
+                    liveSyncDurationCount: 3,
+                    liveMaxLatencyDurationCount: 8,
+                    manifestLoadingMaxRetry: 6,
+                    levelLoadingMaxRetry: 6,
+                    fragLoadingMaxRetry: 6,
+                    backBufferLength: 30
+                });
+                currentHls.loadSource(url);
+                currentHls.attachMedia(video);
+                currentHls.on(Hls.Events.LEVEL_LOADED, function(event, data) {
+                    if (isShortEndedPlaylist(data.details)) {
+                        playNextServer(streams, currentIndex, title, channel, 'ended');
+                    }
+                });
+                currentHls.on(Hls.Events.MANIFEST_PARSED, function() {
+                    if (currentHls.levels.length > 0) {
+                        qualitySelect.innerHTML = '<option value="-1">Auto</option>' + currentHls.levels
+                            .map((level, index) => `<option value="${index}">${level.height || 'Unknown'}p ${level.bitrate ? Math.round(level.bitrate / 1000) + 'kbps' : ''}</option>`)
+                            .join('');
+                        qualitySelect.disabled = false;
+                        qualitySelect.onchange = () => {
+                            currentHls.currentLevel = Number(qualitySelect.value);
+                        };
+
+                        // Start on the highest available level for a cleaner picture,
+                        // then allow Hls.js to recover if bandwidth drops.
+                        currentHls.currentLevel = currentHls.levels.length - 1;
+                        qualitySelect.value = String(currentHls.currentLevel);
+                    }
+
+                    video.play().catch(() => {
+                        playerError.textContent = 'اضغط Play لتشغيل البث.';
+                    });
+                });
+                video.onended = () => {
+                    playerError.textContent = 'البث الحالي انتهى أو تحول لمقطع قصير، جاري تجربة سيرفر آخر...';
+                    playNextServer(streams, currentIndex, title, channel, 'ended');
+                };
+                currentHls.on(Hls.Events.ERROR, function(event, data) {
+                    console.error('HLS error:', data);
+                    if (!data.fatal && data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+                        currentHls.recoverMediaError();
+                        return;
+                    }
+
+                    if (data.fatal) {
+                        destroyCurrentHls();
+                        playNextServer(streams, currentIndex, title, channel);
+                    }
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = url;
+                video.play().catch(() => {
+                    playerError.textContent = 'اضغط Play لتشغيل البث.';
+                });
+            } else {
+                playerError.textContent = 'المتصفح لا يدعم HLS. استخدم Chrome/Edge مع hls.js أو Safari.';
+            }
+        }
+
+        function matchName(match) {
+            if (match.title) return match.title;
+            const home = match.homeTeam?.name || match.home_team || '';
+            const away = match.awayTeam?.name || match.away_team || '';
+            return [home, away].filter(Boolean).join(' vs ') || 'مباراة';
+        }
+
+        function normalizeOtherSportEvent(event) {
+            return {
+                ...event,
+                isOtherSport: true,
+                sportLabel: sportLabel(event.sportKey),
+                channel: event.source || '',
+                tournament: { name: event.competitionName || '' },
+                streams: Array.isArray(event.streams) ? event.streams : []
+            };
+        }
+
+        function sportLabel(key) {
+            return {
+                basketball: 'كرة السلة',
+                tennis: 'التنس',
+                formula1: 'فورمولا 1',
+                ice_hockey: 'هوكي الجليد',
+                football: 'كرة القدم'
+            }[key] || key || 'رياضة أخرى';
+        }
+
+        function selectedDate() {
+            return matchesDate.value || new Date().toISOString().slice(0, 10);
+        }
+
+        function shiftSelectedDate(days) {
+            const current = new Date(selectedDate() + 'T00:00:00Z');
+            current.setUTCDate(current.getUTCDate() + days);
+            matchesDate.value = current.toISOString().slice(0, 10);
+            loadMatches();
+        }
+
+        function renderMatches(matches) {
+            matchesList.innerHTML = '';
+
+            if (!Array.isArray(matches) || matches.length === 0) {
+                matchesList.innerHTML = `<div class="card muted">لا توجد مباريات متاحة ليوم ${selectedDate()}. لو اليوم بعيد عن نطاق السحب التلقائي، زوّد SportsSync:FullSyncLookaheadDays أو شغّل run_all.py بالتاريخ المطلوب.</div>`;
+                return;
+            }
+
+            let firstPlayable = null;
+
+            matches.forEach(match => {
+                const streams = Array.isArray(match.streams) ? match.streams : [];
+                const title = matchName(match);
+                const channel = match.channel || '';
+                const tournament = match.tournament?.name || '';
+                const card = document.createElement('div');
+                card.className = 'card';
+
+                const buttons = streams.map((stream, index) => {
+                    const url = getStreamUrl(stream);
+                    if (!firstPlayable && url) {
+                        firstPlayable = { url, title, channel, streams, index };
+                    }
+                    return `<button class="server-btn" data-url="${encodeURIComponent(url)}" data-title="${encodeURIComponent(title)}" data-channel="${encodeURIComponent(channel)}" data-index="${index}">سيرفر ${index + 1} (${stream.source || 'HLS'})</button>`;
+                }).join('');
+
+                card.innerHTML = `
+                    <div class="match-header">
+                        <div>
+                            <strong>${title}</strong>
+                            <span class="live-badge">${match.status || 'مباشر'}</span>
+                            <span class="sport-badge">${match.sportLabel || 'كرة القدم'}</span>
+                        </div>
+                        <div class="muted">${tournament} - ${channel}</div>
+                    </div>
+                    <div class="server-list">
+                        ${buttons || '<span class="muted">اللايف مقفول في الوقت الحالي أو لا يوجد سيرفر شغال لهذه المباراة.</span>'}
+                    </div>`;
+
+                card.querySelectorAll('.server-btn').forEach(button => {
+                    button.addEventListener('click', () => {
+                        playStream(
+                            decodeURIComponent(button.dataset.url),
+                            decodeURIComponent(button.dataset.title),
+                            decodeURIComponent(button.dataset.channel),
+                            streams,
+                            Number(button.dataset.index)
+                        );
+                    });
+                });
+
+                matchesList.appendChild(card);
+            });
+
+            if (firstPlayable) {
+                playStream(firstPlayable.url, firstPlayable.title, firstPlayable.channel, firstPlayable.streams, firstPlayable.index);
+            }
+        }
+
+        async function fetchJson(url) {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`${url} => HTTP ${response.status}`);
+            return response.json();
+        }
+
+        async function loadMatches() {
+            try {
+                if (window.location.protocol === 'file:') {
+                    throw new Error('افتح الصفحة من السيرفر مثل http://qemma.runasp.net/sports.html وليس من ملف D:/... حتى تعمل طلبات API و HLS.');
+                }
+
+                const date = selectedDate();
+                const sport = sportFilter.value;
+                const jobs = [];
+
+                if (sport === 'all' || sport === 'football') {
+                    jobs.push(fetchJson('/api/SportsData/matches?date=' + encodeURIComponent(date)).catch(() => []));
+                } else {
+                    jobs.push(Promise.resolve([]));
+                }
+
+                if (sport === 'all') {
+                    jobs.push(fetchJson('/api/other-sports/events?date=' + encodeURIComponent(date)).catch(() => []));
+                } else if (sport !== 'football') {
+                    jobs.push(fetchJson('/api/other-sports/events?date=' + encodeURIComponent(date) + '&sportKey=' + encodeURIComponent(sport)).catch(() => []));
+                } else {
+                    jobs.push(Promise.resolve([]));
+                }
+
+                const [footballMatches, otherSportEvents] = await Promise.all(jobs);
+                const normalized = [
+                    ...(Array.isArray(footballMatches) ? footballMatches.map(m => ({ ...m, sportLabel: 'كرة القدم' })) : []),
+                    ...(Array.isArray(otherSportEvents) ? otherSportEvents.map(normalizeOtherSportEvent) : [])
+                ].sort((a, b) => new Date(a.eventDate || a.date || 0) - new Date(b.eventDate || b.date || 0));
+
+                renderMatches(normalized);
+                dateHint.textContent = `معروض يوم ${date}`;
+                document.getElementById('status').innerText = 'تم تحميل المباريات: ' + new Date().toLocaleTimeString();
+            } catch (err) {
+                console.error('Error loading matches:', err);
+                document.getElementById('status').innerText = 'خطأ في تحميل المباريات';
+                matchesList.innerHTML = `<div class="card error">${err.message}</div>`;
+            }
+        }
+
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl('/matchHub')
+            .build();
+
+        connection.on('ReceiveOtherSportUpdate', function(update) {
+            console.log('تحديث رياضات أخرى:', update);
+            loadMatches();
+        });
+
+        matchesDate.value = new Date().toISOString().slice(0, 10);
+        reloadBtn.addEventListener('click', loadMatches);
+        prevDayBtn.addEventListener('click', () => shiftSelectedDate(-1));
+        todayBtn.addEventListener('click', () => { matchesDate.value = new Date().toISOString().slice(0, 10); loadMatches(); });
+        nextDayBtn.addEventListener('click', () => shiftSelectedDate(1));
+        matchesDate.addEventListener('change', loadMatches);
+        sportFilter.addEventListener('change', loadMatches);
+
+        connection.on('ReceiveMatchUpdate', function(update) {
+            console.log('تحديث جديد:', update);
+            loadMatches();
+        });
+
+        connection.start()
+            .then(loadMatches)
+            .catch(err => {
+                console.error(err.toString());
+                loadMatches();
+            });
+    </script>
+</body>
+</html>

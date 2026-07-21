@@ -1,0 +1,122 @@
+[
+  {
+    "name": "beIN SPORTS MAX HD2",
+    "url": "https://a16.kora-plus.app/live/max2.m3u8?token=7bDESReD8B7mZtp53n28nW_Jxc0&exp=1783310493",
+    "source": "Kora Plus MAX2",
+    "priority": 1,
+    "headers": {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "Referer": "https://a16.kora-plus.app/frame.php?ch=max2&p=12&token=455a877c-72ce-4018-ab49-3231de05f2b6&kt=1783308692"
+    }
+  },
+  {
+    "name": "beIN SPORTS MAX HD2",
+    "url": "https://yalla1shooot.online/player/buz-tv-live.s3.eu-central-1.amazonaws.com/max2/master.m3u8",
+    "source": "Yalla Shoot MAX2 Auto",
+    "priority": 2,
+    "headers": {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "Referer": "https://p1.paanda-hd.com/"
+    }
+  },
+  {
+    "name": "beIN SPORTS MAX HD2",
+    "url": "https://yalla1shooot.online/player/buz-tv-live.s3.eu-central-1.amazonaws.com/max2/master_1080p30.m3u8",
+    "source": "Yalla Shoot MAX2 1080p",
+    "priority": 3,
+    "headers": {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "Referer": "https://p1.paanda-hd.com/"
+    }
+  },
+  {
+    "name": "beIN SPORTS MAX HD2",
+    "url": "https://yalla1shooot.online/player/buz-tv-live.s3.eu-central-1.amazonaws.com/max2/master_480p30.m3u8",
+    "source": "Yalla Shoot MAX2 480p",
+    "priority": 4,
+    "headers": {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "Referer": "https://p1.paanda-hd.com/"
+    }
+  },
+  {
+    "name": "beIN SPORTS MAX HD1",
+    "url": "https://s3.us-east-2.amazonaws.com/cdd200/live/stream/index.m3u8",
+    "source": "Yalla Shoot MAX1 S3 Auto",
+    "priority": 1,
+    "headers": {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "Referer": "https://25.1yallashoot.site/"
+    }
+  },
+  {
+    "name": "beIN SPORTS MAX HD1",
+    "url": "https://a8.kora-plus.app/live/max1.m3u8?token=AzFnfReDRabJxiGEkCHgTD78F_w&exp=1783370572",
+    "source": "Kora Plus MAX1 Auto",
+    "priority": 2,
+    "headers": {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "Referer": "https://a8.kora-plus.app/frame.php?ch=max1&p=12&token=455a877c-72ce-4018-ab49-3231de05f2b6&kt=1783368771"
+    }
+  },
+  {
+    "name": "beIN SPORTS MAX HD1",
+    "url": "https://cm.pororbit.shop/goonzl1_720/index.m3u8",
+    "source": "Pororbit MAX1 720p",
+    "priority": 3,
+    "headers": {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "Referer": "https://we.shootsync.site/"
+    }
+  },
+  {
+    "name": "beIN SPORTS MAX HD1",
+    "url": "https://cm.pororbit.shop/goonzl1.m3u8",
+    "source": "Pororbit MAX1 Auto",
+    "priority": 4,
+    "headers": {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "Referer": "https://we.shootsync.site/"
+    }
+  },
+  {
+    "name": "beIN SPORTS MAX HD1",
+    "url": "https://cm.pororbit.shop/goonzl1_480/index.m3u8",
+    "source": "Pororbit MAX1 480p",
+    "priority": 5,
+    "headers": {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "Referer": "https://p1.paanda-hd.com/"
+    }
+  },
+  {
+    "name": "beIN SPORTS MAX HD1",
+    "url": "https://cm.pororbit.shop/goonzl1_360/index.m3u8",
+    "source": "Pororbit MAX1 360p",
+    "priority": 6,
+    "headers": {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "Referer": "https://p1.paanda-hd.com/"
+    }
+  },
+  {
+    "name": "beIN SPORTS MAX HD1",
+    "url": "https://2.simokora.com/my-hls/h9asfma10d5.m3u8",
+    "source": "Simokora MAX1 fallback",
+    "priority": 7,
+    "headers": {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "Referer": "https://p1.paanda-hd.com/"
+    }
+  },
+  {
+    "name": "Alwan 1",
+    "url": "https://a18.kora-plus.app/live/alwan1.m3u8?token=aj-gR8vW0q6f8WW_9F328ZoSu04&exp=1783310542",
+    "source": "Kora Plus Alwan1",
+    "priority": 1,
+    "headers": {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+      "Referer": "https://a18.kora-plus.app/frame.php?ch=alwan1&p=12&token=455a877c-72ce-4018-ab49-3231de05f2b6&kt=1783308743"
+    }
+  }
+]

@@ -1,0 +1,31 @@
+[
+  {
+    "sportKey": "tennis",
+    "competitionName": "wimbledon",
+    "titleContains": "centre court",
+    "streams": [
+      {
+        "source": "Manual sports channel override",
+        "streamUrl": "https://example.com/tennis/watch",
+        "m3U8Url": "https://example.com/tennis/master.m3u8",
+        "statusMessage": "manual override"
+      }
+    ]
+  },
+  {
+    "sportKey": "formula1",
+    "competitionName": "formula 1",
+    "streams": [
+      {
+        "source": "Owned F1 HLS feed",
+        "streamUrl": "https://example.com/f1/watch-page",
+        "m3U8Url": "https://xameleon.phantemlis.top/five/secure/example/premium98/tracks-v1a1/mono.m3u8",
+        "statusMessage": "manual owned HLS feed via Qemma proxy",
+        "headers": {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36",
+          "Referer": "https://hamis.romponalis.st/"
+        }
+      }
+    ]
+  }
+]

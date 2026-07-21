@@ -1,0 +1,6 @@
+@QemmaProject_HostAddress = http://localhost:5008
+
+GET {{QemmaProject_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

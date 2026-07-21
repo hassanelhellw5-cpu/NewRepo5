@@ -1,0 +1,31 @@
+{
+  "events": [
+    {
+      "sportKey": "formula1",
+      "externalId": "f1-2026-silverstone-race",
+      "title": "British Grand Prix - Race",
+      "competitionName": "Formula 1",
+      "eventDate": "2026-07-10T14:00:00Z",
+      "status": "Live",
+      "time": "Lap 12/52",
+      "venue": "Silverstone",
+      "country": "United Kingdom",
+      "source": "normalized-feed",
+      "sourceUrl": "https://example.com/f1/live",
+      "participants": [
+        { "name": "Driver One", "teamName": "Team A", "country": "GB", "role": "driver", "seedOrNumber": 1 },
+        { "name": "Driver Two", "teamName": "Team B", "country": "NL", "role": "driver", "seedOrNumber": 2 }
+      ],
+      "results": [
+        { "participantName": "Driver One", "rank": 1, "score": "Lap 12", "resultText": "P1" },
+        { "participantName": "Driver Two", "rank": 2, "score": "+1.2s", "resultText": "P2" }
+      ],
+      "streams": [
+        { "source": "official-or-partner", "streamUrl": "https://example.com/watch", "m3U8Url": "", "statusMessage": "available" }
+      ],
+      "live_updates": [
+        { "externalId": "lap-12-position-change", "minuteOrLap": "Lap 12", "type": "PositionChange", "title": "Position change", "detail": "Driver Two moved into P2.", "publishedAt": "2026-07-10T14:31:00Z" }
+      ]
+    }
+  ]
+}
