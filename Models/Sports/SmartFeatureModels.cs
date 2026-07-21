@@ -15,6 +15,13 @@ namespace QemmaProject.Models.Sports
         public string? ImageUrl { get; set; }
         public string? ImageSource { get; set; }
         public string? ExternalPlayerId { get; set; }
+        public string? Nationality { get; set; }
+        public DateTime? BirthDate { get; set; }
+        public int? Age { get; set; }
+        public string? Height { get; set; }
+        public string? PreferredFoot { get; set; }
+        public string? FormerTeamsJson { get; set; }
+        public string? ProfileMetadataJson { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     }
@@ -78,6 +85,10 @@ namespace QemmaProject.Models.Sports
         public int KnockoutSeed { get; set; }
         public int KnockoutRound { get; set; }
         public bool IsKnockoutEliminated { get; set; }
+        public int FreeTransfersBanked { get; set; } = 1;
+        public int TransfersMadeThisRound { get; set; }
+        public int TransferPenaltyPoints { get; set; }
+        public int LastTransferRound { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
         public virtual ICollection<FantasyEntryPick> Picks { get; set; } = new List<FantasyEntryPick>();

@@ -1,0 +1,12 @@
+IF COL_LENGTH('OtherSportEvents', 'MetadataJson') IS NULL ALTER TABLE OtherSportEvents ADD MetadataJson nvarchar(max) NOT NULL CONSTRAINT DF_OtherSportEvents_MetadataJson DEFAULT '{}';
+IF COL_LENGTH('Players', 'Nationality') IS NULL ALTER TABLE Players ADD Nationality nvarchar(max) NULL;
+IF COL_LENGTH('Players', 'BirthDate') IS NULL ALTER TABLE Players ADD BirthDate datetime2 NULL;
+IF COL_LENGTH('Players', 'Age') IS NULL ALTER TABLE Players ADD Age int NULL;
+IF COL_LENGTH('Players', 'Height') IS NULL ALTER TABLE Players ADD Height nvarchar(max) NULL;
+IF COL_LENGTH('Players', 'PreferredFoot') IS NULL ALTER TABLE Players ADD PreferredFoot nvarchar(max) NULL;
+IF COL_LENGTH('Players', 'FormerTeamsJson') IS NULL ALTER TABLE Players ADD FormerTeamsJson nvarchar(max) NULL;
+IF COL_LENGTH('Players', 'ProfileMetadataJson') IS NULL ALTER TABLE Players ADD ProfileMetadataJson nvarchar(max) NULL;
+IF COL_LENGTH('FantasyEntries', 'FreeTransfersBanked') IS NULL ALTER TABLE FantasyEntries ADD FreeTransfersBanked int NOT NULL CONSTRAINT DF_FantasyEntries_FreeTransfersBanked DEFAULT 1;
+IF COL_LENGTH('FantasyEntries', 'TransfersMadeThisRound') IS NULL ALTER TABLE FantasyEntries ADD TransfersMadeThisRound int NOT NULL CONSTRAINT DF_FantasyEntries_TransfersMadeThisRound DEFAULT 0;
+IF COL_LENGTH('FantasyEntries', 'TransferPenaltyPoints') IS NULL ALTER TABLE FantasyEntries ADD TransferPenaltyPoints int NOT NULL CONSTRAINT DF_FantasyEntries_TransferPenaltyPoints DEFAULT 0;
+IF COL_LENGTH('FantasyEntries', 'LastTransferRound') IS NULL ALTER TABLE FantasyEntries ADD LastTransferRound int NOT NULL CONSTRAINT DF_FantasyEntries_LastTransferRound DEFAULT 0;

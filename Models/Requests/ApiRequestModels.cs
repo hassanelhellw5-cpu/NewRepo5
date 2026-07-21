@@ -9,6 +9,7 @@ namespace QemmaProject.Models.Requests
     public record CreateContestRequest(int TournamentId, DateTime ContestDate, string? Name, string OwnerUserId = "", bool IsPublic = false, int MaxMembers = 20, PredictionLeagueFormat Format = PredictionLeagueFormat.Leaderboard);
     public record JoinFantasyContestRequest(string UserId, string Code);
     public record PickPlayersRequest(string UserId, List<int> PlayerIds);
+    public record FantasyTransferRequest(string UserId, int OutPlayerId, int InPlayerId);
     // Cosmetic and player requests
     public record LimitedCosmeticRequest(string Name, string Slug, CosmeticItemType Type, string? Description, string? AssetUrl, string? ThemePalette, int? MatchId, DateTime? AvailableFrom, DateTime? AvailableUntil, decimal PriceCoins);
     public record UpdatePlayerImageRequest(string? ImageUrl, string? ImageSource, string? ExternalPlayerId);

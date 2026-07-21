@@ -138,6 +138,7 @@ def _apply_appsettings_env(env: dict[str, str], settings: dict) -> None:
     _set_env_default(env, "ConnectionStrings__DefaultConnection", default_connection)
 
     _set_env_default(env, "ICE_HOCKEY_ENABLED", _setting(settings, "OtherSports:IceHockeyEnabled"))
+    _set_env_default(env, "FORMULA1_ENABLED", _setting(settings, "OtherSports:Formula1Enabled"))
     _set_env_default(env, "ICE_HOCKEY_SOURCE_URL", _setting(settings, "OtherSports:IceHockeySourceUrl"))
     _set_env_default(env, "ICE_HOCKEY_SOURCE_NAME", _setting(settings, "OtherSports:IceHockeySourceName"))
     overrides_file = _setting(settings, "OtherSports:StreamOverridesFile")
@@ -148,6 +149,7 @@ def _apply_appsettings_env(env: dict[str, str], settings: dict) -> None:
     _set_env_default(env, "ENABLE_SELENIUM_MULTISPORT_IMPORT", _setting(settings, "SportsSync:EnableMultisportSeleniumImport"))
     _set_env_default(env, "ENABLE_SOFASCORE_FANTASY_LINEUPS", _setting(settings, "SportsSync:EnableSofascoreFantasyLineups"))
     _set_env_default(env, "ENABLE_UNIFIED_LIVE_LINKER", _setting(settings, "SportsSync:EnableUnifiedLiveLinker"))
+    _set_env_default(env, "ENABLE_YALLASHOOT_APPIUM_HIGHLIGHTS", _setting(settings, "SportsSync:EnableYallaShootAppiumHighlights"))
 
 
 def _has_chrome_binary(env: dict[str, str]) -> bool:
@@ -362,6 +364,9 @@ def run_once(argv: list[str] | None, args) -> int:
 
         if _is_enabled(env, "ENABLE_VIDEO_SCRAPER", True):
             overall_code = max(overall_code, _run("yallakora_video_scraper.py", env, optional=True))
+
+        if _is_enabled(env, "ENABLE_YALLASHOOT_APPIUM_HIGHLIGHTS", False):
+            overall_code = max(overall_code, _run("yallashoot_appium_highlights.py", env, optional=True))
 
         if _is_enabled(env, "ENABLE_LIVE_STREAM_LINKING", True):
             live_script = "unified_live_stream_linker.py" if _is_enabled(env, "ENABLE_UNIFIED_LIVE_LINKER", True) else "live_stream_scraper.py"

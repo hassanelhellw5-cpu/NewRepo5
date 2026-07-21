@@ -42,7 +42,7 @@ namespace QemmaProject.Services
                         .SumAsync(s => s.FantasyPoints, cancellationToken);
                 }
 
-                entry.TotalPoints = entry.Picks.Sum(p => p.Points);
+                entry.TotalPoints = entry.Picks.Sum(p => p.Points) - entry.TransferPenaltyPoints;
                 entry.UpdatedAt = DateTime.UtcNow;
             }
 
