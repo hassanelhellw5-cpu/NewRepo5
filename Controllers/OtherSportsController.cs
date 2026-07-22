@@ -25,6 +25,48 @@ namespace QemmaProject.Controllers
             _configuration = configuration;
         }
 
+
+        [HttpGet("sports")]
+        public async Task<IActionResult> GetSports()
+        {
+            var configuredSports = new[]
+            {
+                new { sportKey = "football", name = "Football" },
+                new { sportKey = "basketball", name = "Basketball" },
+                new { sportKey = "tennis", name = "Tennis" },
+                new { sportKey = "formula1", name = "Formula 1" },
+                new { sportKey = "handball", name = "Handball" },
+                new { sportKey = "volleyball", name = "Volleyball" }
+            };
+
+            var eventCounts = await _context.OtherSportEvents
+                .AsNoTracking()
+                .GroupBy(e => e.SportKey)
+                .Select(g => new { sportKey = g.Key, eventsCount = g.Count(), nextEventDate = g.Min(e => (DateTime?)e.EventDate) })
+                .ToListAsync();
+
+            var countMap = eventCounts.ToDictionary(e => e.sportKey, StringComparer.OrdinalIgnoreCase);
+            var fromDbOnly = eventCounts
+                .Where(e => !configuredSports.Any(s => s.sportKey.Equals(e.sportKey, StringComparison.OrdinalIgnoreCase)))
+                .Select(e => new { sportKey = e.sportKey, name = ToDisplaySportName(e.sportKey) });
+
+            var sports = configuredSports.Concat(fromDbOnly)
+                .OrderBy(s => s.name)
+                .Select(s =>
+                {
+                    countMap.TryGetValue(s.sportKey, out var stats);
+                    return new
+                    {
+                        s.sportKey,
+                        s.name,
+                        eventsCount = stats?.eventsCount ?? 0,
+                        nextEventDate = stats?.nextEventDate
+                    };
+                });
+
+            return Ok(sports);
+        }
+
         [HttpGet("events")]
         public async Task<IActionResult> GetEvents([FromQuery] string? sportKey = null, [FromQuery] DateTime? date = null, [FromQuery] bool liveOnly = false)
         {
@@ -166,6 +208,8 @@ namespace QemmaProject.Controllers
             existing.Results = incoming.Results;
             existing.Streams = incoming.Streams;
         }
+
+        private static string ToDisplaySportName(string sportKey) => string.IsNullOrWhiteSpace(sportKey) ? "Other" : string.Join(" ", sportKey.Replace("-", " ").Replace("_", " ").Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
 
         private object ToEventResponse(OtherSportEvent e, bool includeLiveUpdates = false) => new
         {

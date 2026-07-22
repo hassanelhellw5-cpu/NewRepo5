@@ -361,3 +361,52 @@ python Scrapers/yallakora_video_scraper.py
 ```
 
 لو لا يوجد endpoint رسمي أو مسموح، الأفضل الاعتماد على يلا كورة ومصادر الهايلايت العامة إلى أن يتوفر مصدر موثوق، لأننا لا نقدر نخمن API تطبيق موبايل من غير فحص فعلي للترافيك. عمليًا السكريبر أصبح يضيف fallback عام بدون مفاتيح عبر YouTube search بكلمات مثل `يلا شوت ملخص` و`يلا شوت أهداف` بجانب FootyRoom/HooFoot/DasFootball، فحتى لو مصدر التطبيق نفسه غير متاح، عندنا محاولة تلقائية أوسع لجلب highlights من الويب العام.
+
+## 6) تحديثات مهمة لتفادي أخطاء الفرونت الحالية
+
+### كل مسابقات المستخدم في endpoint واحد
+
+لو الداشبورد محتاج يعرض كل الدوريات/المسابقات التي دخلها المستخدم سواء توقعات أو فانتازي، استخدم:
+
+`GET /api/users/{userId}/competitions`
+
+الرد يحتوي:
+- `predictionLeagues`: دوريات التوقعات التي المستخدم عضو فيها.
+- `fantasyContests`: مسابقات الفانتازي التي المستخدم عضو فيها.
+
+وما زالت endpoints التفصيلية متاحة لو الصفحة محتاجة نوع واحد فقط:
+- `GET /api/PredictionLeagues/my?userId=current-user-id`
+- `GET /api/fantasy/contests/my?userId=current-user-id`
+
+### لاعيبة الفانتازي لازم تيجي من ماتشات اليوم وليس قائمة عامة
+
+استخدم فقط:
+
+`GET /api/fantasy/tournaments/{tournamentId}/today/players?date=YYYY-MM-DD`
+
+مهم للفرونت:
+- لا تستخدم endpoint عام للاعبين في شاشة اختيار الفانتازي.
+- لو `playerSource = "today-match-lineups"` فالرد مبني على lineups الماتشات الموجودة لنفس التاريخ، وده أفضل وضع.
+- لو `playerSource = "recent-team-lineups-and-scorers-fallback"` فهذا fallback لأن lineups ماتش اليوم غير متاحة بعد؛ اعرض تنبيه بسيط للمستخدم أن القائمة مبنية على آخر قوائم الفرق.
+- لو `players` فاضية، اعرض رسالة: `لا توجد قوائم لاعبين متاحة لهذه المباريات حتى الآن` بدل اختيار لاعبين عشوائيين.
+
+### الرياضات الأخرى
+
+الصفحة التي كانت تطلب `/api/other-sports/sports` يمكنها الآن استخدام:
+
+`GET /api/other-sports/sports`
+
+ولجلب أحداث يوم معين:
+
+`GET /api/other-sports/events?date=YYYY-MM-DD&sportKey=tennis`
+
+ملاحظات للفرونت:
+- لا ترسل مسار مكرر مثل `/api/api/...`.
+- لو Vite proxy مضبوط على `/qemma-api -> backend` فالاستدعاء الصحيح من المتصفح يكون `/qemma-api/api/other-sports/sports`، والباك إند يستقبلها كـ `/api/other-sports/sports` بعد إزالة prefix من proxy.
+- اعرض رسالة خطأ واضحة لو رجع 503 من قاعدة البيانات؛ ده غالبًا إعداد connection string وليس مشكلة UI.
+
+## 7) دليل تفصيلي محدث للفرونت
+
+للتفاصيل الكاملة الخاصة بالـ dashboard، فانتازي، دوريات التوقعات، SignalR، error handling، وchecklist قبل التسليم، راجع:
+
+`Docs/FANTASY_PREDICTION_FRONTEND_INTEGRATION_AR.md`
