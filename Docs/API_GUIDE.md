@@ -159,13 +159,16 @@ Environment variables المهمة للسكريبرز:
 | GET | `/api/fan-engagement/events/limited-store` | Public | عروض المتجر المحدودة. |
 | POST | `/api/fan-engagement/supporter/subscribe` | Auth | اشتراك supporter. |
 | GET | `/api/fan-engagement/profile/{userId}/premium` | Public | حالة premium/profile. |
+| GET | `/api/fan-engagement/matches/{matchId}/experience?userId={userId}` | Public/Auth | تجربة تفاعل الماتش: store، fan pass، leaderboard، SignalR config. |
+| GET | `/api/fan-engagement/matches/{matchId}/supporter-leaderboard` | Public | ترتيب الداعمين للماتش. |
 | POST | `/api/fan-engagement/matches/{matchId}/fan-pass` | Auth | شراء/تفعيل fan pass. |
 | POST | `/api/fan-engagement/custom-tournaments/requests` | Auth | طلب بطولة مخصصة. |
 | POST | `/api/fan-engagement/cosmetics/{cosmeticId}/purchase` | Auth | شراء cosmetic. |
 | POST | `/api/fan-engagement/cosmetics/{cosmeticId}/equip` | Auth | تجهيز cosmetic. |
 | GET | `/api/fan-engagement/cheers` | Public | قائمة cheers. |
-| POST | `/api/fan-engagement/matches/{matchId}/chat` | Auth | إرسال رسالة شات ماتش. |
+| POST | `/api/fan-engagement/matches/{matchId}/chat` | Auth | إرسال رسالة شات ماتش، ويمكن تثبيتها بـ coins. |
 | GET | `/api/fan-engagement/matches/{matchId}/chat` | Public | قراءة شات ماتش. |
+| POST | `/api/fan-engagement/matches/{matchId}/reactions` | Auth | إرسال reaction عادي أو premium burst. |
 | GET | `/api/fan-engagement/matches/{matchId}/live-readiness` | Public | جاهزية اللايف/الشات/الفان features. |
 
 ## 8) Fantasy API
@@ -173,13 +176,16 @@ Environment variables المهمة للسكريبرز:
 | Method | Endpoint | مين يستخدمه | الغرض |
 | --- | --- | --- | --- |
 | POST | `/api/fantasy/players/import` | Admin | استيراد لاعبين fantasy. |
-| POST | `/api/fantasy/contests` | Admin | إنشاء contest. |
-| POST | `/api/fantasy/contests/join` | Auth | انضمام contest. |
+| POST | `/api/fantasy/contests` | Auth | إنشاء contest مجاني؛ لا ترسل أي coins/fees. |
+| POST | `/api/fantasy/contests/join` | Auth | انضمام contest مجاني بالكود. |
 | GET | `/api/fantasy/tournaments/{tournamentId}/today/players` | Public | لاعبين بطولة اليوم. |
 | POST | `/api/fantasy/contests/{contestId}/entries` | Auth | إرسال تشكيلة. |
 | POST | `/api/fantasy/contests/{contestId}/score` | Admin | حساب نقاط contest. |
+| GET | `/api/fantasy/contests/{contestId}` | Public/Auth | تفاصيل contest كاملة، ومع `userId` يرجع current user entry. |
 | GET | `/api/fantasy/contests/{contestId}/leaderboard` | Public | ترتيب contest. |
 | GET | `/api/fantasy/contests/code/{code}` | Public | contest بالكود. |
+| GET | `/api/fantasy/my?userId={userId}` | Auth | مسابقات الفانتازي التي دخلها المستخدم. |
+| GET | `/api/fantasy/contests/my?userId={userId}` | Auth | alias لنفس قائمة مسابقات المستخدم. |
 | POST | `/api/fantasy/contests/{contestId}/convert-to-knockout` | Auth | تحويل knockout. |
 | POST | `/api/fantasy/contests/{contestId}/advance-knockout-round` | Auth | تقدم دور knockout. |
 | GET | `/api/fantasy/contests/{contestId}/knockout` | Public | عرض knockout bracket. |

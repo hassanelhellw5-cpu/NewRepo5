@@ -132,6 +132,46 @@ namespace QemmaProject.Controllers
         }
 
 
+
+        [HttpGet("my")]
+        public async Task<IActionResult> MyLeagues([FromQuery] string userId)
+        {
+            if (string.IsNullOrWhiteSpace(userId)) return BadRequest(new { message = "UserId is required." });
+            if (!this.IsSelfOrAdmin(userId)) return this.ForbiddenUser();
+
+            var leagues = await _context.PredictionLeagueMembers
+                .Include(m => m.PredictionLeague)
+                .Where(m => m.UserId == userId)
+                .OrderByDescending(m => m.JoinedAt)
+                .Select(m => new
+                {
+                    memberId = m.Id,
+                    m.UserId,
+                    m.Role,
+                    m.TotalPoints,
+                    m.KnockoutSeed,
+                    m.KnockoutRound,
+                    m.IsKnockoutEliminated,
+                    m.JoinedAt,
+                    league = new
+                    {
+                        m.PredictionLeague.Id,
+                        m.PredictionLeague.Name,
+                        m.PredictionLeague.Code,
+                        m.PredictionLeague.IsPublic,
+                        m.PredictionLeague.Status,
+                        m.PredictionLeague.Format,
+                        m.PredictionLeague.KnockoutCurrentRound,
+                        m.PredictionLeague.StartsAt,
+                        m.PredictionLeague.EndsAt,
+                        m.PredictionLeague.CreatedAt
+                    }
+                })
+                .ToListAsync();
+
+            return Ok(leagues);
+        }
+
         [HttpPost("{leagueId:int}/predict")]
         public async Task<IActionResult> Predict(int leagueId, [FromBody] LeaguePredictionRequest request)
         {

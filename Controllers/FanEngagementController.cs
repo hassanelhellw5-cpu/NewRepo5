@@ -159,6 +159,103 @@ namespace QemmaProject.Controllers
             });
         }
 
+
+        [AllowAnonymous]
+        [HttpGet("matches/{matchId:int}/experience")]
+        public async Task<IActionResult> GetMatchEngagementExperience(int matchId, [FromQuery] string? userId = null)
+        {
+            if (!string.IsNullOrWhiteSpace(userId) && !this.IsSelfOrAdmin(userId)) return this.ForbiddenUser();
+
+            var match = await _context.Matches
+                .Include(m => m.HomeTeam)
+                .Include(m => m.AwayTeam)
+                .FirstOrDefaultAsync(m => m.Id == matchId);
+            if (match == null) return NotFound(new { message = "Match not found." });
+
+            var now = DateTime.UtcNow;
+            var storeItems = await _context.CosmeticItems
+                .Where(c => c.IsActive && (c.MatchId == null || c.MatchId == matchId) &&
+                    (c.AvailableFrom == null || c.AvailableFrom <= now) &&
+                    (c.AvailableUntil == null || c.AvailableUntil >= now) &&
+                    (c.Category == "MatchDay" || c.Category == "LimitedEvent" || c.Category == "Supporter" || c.Type == CosmeticItemType.MatchPass || c.IsLimited))
+                .OrderByDescending(c => c.IsFeatured)
+                .ThenBy(c => c.PriceCoins)
+                .ThenBy(c => c.Name)
+                .Select(c => new
+                {
+                    c.Id,
+                    c.Type,
+                    c.UnlockType,
+                    c.Name,
+                    c.Slug,
+                    c.Category,
+                    c.Description,
+                    c.AssetUrl,
+                    c.ThemePalette,
+                    c.MatchId,
+                    c.IsLimited,
+                    c.AvailableUntil,
+                    c.PriceCoins,
+                    c.PriceMoney,
+                    c.Currency
+                })
+                .ToListAsync();
+
+            var fanPass = string.IsNullOrWhiteSpace(userId)
+                ? null
+                : await _context.MatchFanPasses
+                    .Where(p => p.MatchId == matchId && p.UserId == userId)
+                    .Select(p => new { p.Id, p.Title, p.BadgeText, p.PaidCoins, p.PurchasedAt })
+                    .FirstOrDefaultAsync();
+
+            var supporterRows = await BuildMatchSupporterLeaderboardAsync(matchId, 10);
+
+            return Ok(new
+            {
+                match = new
+                {
+                    match.Id,
+                    match.MatchId,
+                    homeTeam = match.HomeTeam?.Name,
+                    awayTeam = match.AwayTeam?.Name,
+                    match.MatchDate,
+                    match.Time,
+                    match.Status
+                },
+                user = string.IsNullOrWhiteSpace(userId) ? null : new { userId, fanPass },
+                store = new
+                {
+                    matchPassDefaultPriceCoins = 25,
+                    pinnedCheerMinCoins = 10,
+                    premiumBurstMinCoins = 5,
+                    items = storeItems
+                },
+                supporterLeaderboard = supporterRows,
+                signalR = new
+                {
+                    hub = "/matchHub",
+                    room = MatchHub.MatchRoom(matchId),
+                    joinMethod = "JoinMatchRoom",
+                    leaveMethod = "LeaveMatchRoom",
+                    events = new[] { "ReceiveMatchChatMessage", "ReceiveMatchReaction", "ReceiveMatchUpdate", "ReceiveMatchScoreUpdate", "ReceiveMatchDetailsUpdate" }
+                }
+            });
+        }
+
+        [AllowAnonymous]
+        [HttpGet("matches/{matchId:int}/supporter-leaderboard")]
+        public async Task<IActionResult> GetMatchSupporterLeaderboard(int matchId, [FromQuery] int take = 10)
+        {
+            var matchExists = await _context.Matches.AnyAsync(m => m.Id == matchId);
+            if (!matchExists) return NotFound(new { message = "Match not found." });
+
+            return Ok(new
+            {
+                matchId,
+                leaderboard = await BuildMatchSupporterLeaderboardAsync(matchId, Math.Clamp(take, 1, 50))
+            });
+        }
+
         [HttpPost("matches/{matchId:int}/fan-pass")]
         public async Task<IActionResult> BuyMatchFanPass(int matchId, [FromBody] BuyMatchFanPassRequest request)
         {
@@ -303,8 +400,19 @@ namespace QemmaProject.Controllers
 
             var matchExists = await _context.Matches.AnyAsync(m => m.Id == matchId);
             if (!matchExists) return NotFound(new { message = "Match not found." });
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == request.UserId);
+            var user = request.PremiumBurst
+                ? await _wallet.GetUserAsync(request.UserId)
+                : await _context.Users.FirstOrDefaultAsync(u => u.Id == request.UserId);
             if (user == null) return NotFound(new { message = "User not found." });
+
+            var burstCoins = 0m;
+            if (request.PremiumBurst)
+            {
+                burstCoins = Math.Max(5m, request.BurstCoins);
+                await _wallet.DebitAsync(user, burstCoins, CoinTransactionTypes.PremiumReactionBurst,
+                    $"Premium reaction burst for match #{matchId}");
+                await _context.SaveChangesAsync();
+            }
 
             var payload = new
             {
@@ -314,6 +422,9 @@ namespace QemmaProject.Controllers
                 reaction = request.Reaction.Trim(),
                 message = request.Message?.Trim(),
                 request.MatchEventId,
+                isPremiumBurst = request.PremiumBurst,
+                burstCoins,
+                animation = request.PremiumBurst ? ResolveReactionAnimation(request.Reaction) : null,
                 createdAt = DateTime.UtcNow,
                 user.ActiveBadgeUrl,
                 user.CustomThemePalette
@@ -433,6 +544,65 @@ namespace QemmaProject.Controllers
                 matchRoom = MatchHub.MatchRoom(matchId),
                 ready = hasStream && hasChat
             });
+        }
+
+
+        private async Task<List<object>> BuildMatchSupporterLeaderboardAsync(int matchId, int take)
+        {
+            var chatSpend = await _context.LiveChatMessages
+                .Where(m => m.MatchId == matchId && m.PaidCoins > 0)
+                .GroupBy(m => m.UserId)
+                .Select(g => new { UserId = g.Key, PinnedCoins = g.Sum(m => m.PaidCoins), PinnedMessages = g.Count() })
+                .ToListAsync();
+
+            var passSpend = await _context.MatchFanPasses
+                .Where(p => p.MatchId == matchId && p.PaidCoins > 0)
+                .GroupBy(p => p.UserId)
+                .Select(g => new { UserId = g.Key, FanPassCoins = g.Sum(p => p.PaidCoins), FanPasses = g.Count() })
+                .ToListAsync();
+
+            var userIds = chatSpend.Select(s => s.UserId).Concat(passSpend.Select(s => s.UserId)).Distinct().ToList();
+            if (userIds.Count == 0) return new List<object>();
+
+            var users = await _context.Users
+                .Where(u => userIds.Contains(u.Id))
+                .Select(u => new { u.Id, u.UserName, u.ActiveBadgeUrl, u.CustomThemePalette })
+                .ToDictionaryAsync(u => u.Id);
+
+            return userIds
+                .Select(userId =>
+                {
+                    var chat = chatSpend.FirstOrDefault(s => s.UserId == userId);
+                    var pass = passSpend.FirstOrDefault(s => s.UserId == userId);
+                    users.TryGetValue(userId, out var user);
+                    var totalCoins = (chat?.PinnedCoins ?? 0) + (pass?.FanPassCoins ?? 0);
+                    return new
+                    {
+                        userId,
+                        userName = user?.UserName,
+                        totalCoins,
+                        pinnedCoins = chat?.PinnedCoins ?? 0,
+                        fanPassCoins = pass?.FanPassCoins ?? 0,
+                        pinnedMessages = chat?.PinnedMessages ?? 0,
+                        fanPasses = pass?.FanPasses ?? 0,
+                        activeBadgeUrl = user?.ActiveBadgeUrl,
+                        customThemePalette = user?.CustomThemePalette
+                    };
+                })
+                .OrderByDescending(r => r.totalCoins)
+                .ThenBy(r => r.userName)
+                .Take(take)
+                .Cast<object>()
+                .ToList();
+        }
+
+        private static string ResolveReactionAnimation(string reaction)
+        {
+            var normalized = reaction.Trim().ToLowerInvariant();
+            if (normalized.Contains("goal") || normalized.Contains("هدف") || normalized.Contains("⚽")) return "goal-fire";
+            if (normalized.Contains("win") || normalized.Contains("فوز") || normalized.Contains("🏆")) return "trophy-confetti";
+            if (normalized.Contains("heart") || normalized.Contains("حب") || normalized.Contains("❤️")) return "heart-burst";
+            return "stadium-burst";
         }
 
         private async Task UnequipSameTypeAsync(string userId, CosmeticItemType type)
