@@ -17,6 +17,48 @@ namespace QemmaProject.Controllers
             _context = context;
         }
 
+
+        [HttpGet("{userId}/competitions")]
+        public async Task<IActionResult> GetUserCompetitions(string userId)
+        {
+            if (!this.IsSelfOrAdmin(userId)) return this.ForbiddenUser();
+
+            var userExists = await _context.Users.AnyAsync(u => u.Id == userId);
+            if (!userExists) return NotFound(new { message = "User not found." });
+
+            var predictionLeagues = await _context.PredictionLeagueMembers
+                .Include(m => m.PredictionLeague)
+                .Where(m => m.UserId == userId)
+                .OrderByDescending(m => m.JoinedAt)
+                .Select(m => new
+                {
+                    type = "prediction",
+                    memberId = m.Id,
+                    m.Role,
+                    m.TotalPoints,
+                    joinedAt = m.JoinedAt,
+                    league = new { m.PredictionLeague.Id, m.PredictionLeague.Name, m.PredictionLeague.Code, m.PredictionLeague.IsPublic, m.PredictionLeague.Status, m.PredictionLeague.Format }
+                })
+                .ToListAsync();
+
+            var fantasyContests = await _context.FantasyEntries
+                .Include(e => e.FantasyContest).ThenInclude(c => c.Tournament)
+                .Where(e => e.UserId == userId)
+                .OrderByDescending(e => e.UpdatedAt)
+                .Select(e => new
+                {
+                    type = "fantasy",
+                    entryId = e.Id,
+                    e.Role,
+                    e.TotalPoints,
+                    joinedAt = e.CreatedAt,
+                    contest = new { e.FantasyContest.Id, e.FantasyContest.Name, e.FantasyContest.Code, e.FantasyContest.TournamentId, tournament = e.FantasyContest.Tournament.Name, e.FantasyContest.ContestDate, e.FantasyContest.IsPublic, e.FantasyContest.IsOpen, e.FantasyContest.Format }
+                })
+                .ToListAsync();
+
+            return Ok(new { userId, predictionLeagues, fantasyContests });
+        }
+
         [HttpGet("{userId}/stats")]
         public async Task<IActionResult> GetUserStats(string userId)
         {
