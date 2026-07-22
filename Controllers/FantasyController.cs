@@ -53,38 +53,31 @@ namespace QemmaProject.Controllers
             var owner = await _context.Users.FirstOrDefaultAsync(u => u.Id == request.OwnerUserId);
             if (owner == null) return NotFound(new { message = "Owner user not found." });
 
-            var strategy = _context.Database.CreateExecutionStrategy();
-
-            FantasyContest contest = null!;
-            await strategy.ExecuteAsync(async () =>
+            var contest = new FantasyContest
             {
-                await using var dbTransaction = await _context.Database.BeginTransactionAsync();
-                contest = new FantasyContest
-                {
-                    TournamentId = request.TournamentId,
-                    ContestDate = date,
-                    Name = string.IsNullOrWhiteSpace(request.Name) ? $"{tournament.Name} Fantasy {date:yyyy-MM-dd}" : request.Name.Trim(),
-                    Code = await GenerateUniqueContestCodeAsync(),
-                    OwnerUserId = owner.Id,
-                    IsPublic = request.IsPublic,
-                    MaxMembers = Math.Clamp(request.MaxMembers <= 0 ? 20 : request.MaxMembers, 2, 500),
-                    Format = request.Format,
-                    KnockoutCurrentRound = request.Format == PredictionLeagueFormat.Knockout ? 1 : 0,
-                    KnockoutActivatedAt = request.Format == PredictionLeagueFormat.Knockout ? DateTime.UtcNow : null
-                };
-                _context.FantasyContests.Add(contest);
-                await _context.SaveChangesAsync();
-                _context.FantasyEntries.Add(new FantasyEntry
-                {
-                    FantasyContestId = contest.Id,
-                    UserId = owner.Id,
-                    Role = PredictionLeagueRole.Owner,
-                    KnockoutSeed = contest.Format == PredictionLeagueFormat.Knockout ? 1 : 0,
-                    KnockoutRound = contest.Format == PredictionLeagueFormat.Knockout ? 1 : 0
-                });
-                await _context.SaveChangesAsync();
-                await dbTransaction.CommitAsync();
+                TournamentId = request.TournamentId,
+                ContestDate = date,
+                Name = string.IsNullOrWhiteSpace(request.Name) ? $"{tournament.Name} Fantasy {date:yyyy-MM-dd}" : request.Name.Trim(),
+                Code = await GenerateUniqueContestCodeAsync(),
+                OwnerUserId = owner.Id,
+                IsPublic = request.IsPublic,
+                MaxMembers = Math.Clamp(request.MaxMembers <= 0 ? 20 : request.MaxMembers, 2, 500),
+                Format = request.Format,
+                KnockoutCurrentRound = request.Format == PredictionLeagueFormat.Knockout ? 1 : 0,
+                KnockoutActivatedAt = request.Format == PredictionLeagueFormat.Knockout ? DateTime.UtcNow : null
+            };
+            _context.FantasyContests.Add(contest);
+            await _context.SaveChangesAsync();
+
+            _context.FantasyEntries.Add(new FantasyEntry
+            {
+                FantasyContestId = contest.Id,
+                UserId = owner.Id,
+                Role = PredictionLeagueRole.Owner,
+                KnockoutSeed = contest.Format == PredictionLeagueFormat.Knockout ? 1 : 0,
+                KnockoutRound = contest.Format == PredictionLeagueFormat.Knockout ? 1 : 0
             });
+            await _context.SaveChangesAsync();
 
             return Ok(ToContestResponse(contest));
         }
@@ -130,9 +123,10 @@ namespace QemmaProject.Controllers
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
+            var matchIds = matches.Select(m => m.Id).ToList();
             var playerImport = teamNames.Count == 0
                 ? CurrentPlayerImportResult.Empty
-                : await EnsureCurrentPlayersForTeamsAsync(tournamentId, teamNames, day);
+                : await EnsureCurrentPlayersForMatchDayAsync(tournamentId, teamNames, matchIds, day);
             if (playerImport.Imported > 0) await _context.SaveChangesAsync();
 
             var players = teamNames.Count == 0 || playerImport.PlayerKeys.Count == 0
@@ -149,7 +143,7 @@ namespace QemmaProject.Controllers
             {
                 tournamentId,
                 date = day,
-                playerSource = playerImport.Imported > 0 ? "imported-from-recent-yallakora-lineups-and-scorers" : "recent-yallakora-lineups-and-scorers",
+                playerSource = playerImport.Source,
                 imported = playerImport.Imported,
                 currentRosterLookbackDays = CurrentRosterLookbackDays,
                 matches = matches.Select(m => new { m.Id, home = m.HomeTeam.Name, away = m.AwayTeam.Name, m.MatchDate }),
@@ -444,7 +438,7 @@ namespace QemmaProject.Controllers
         private const int CurrentRosterLookbackDays = 180;
         private const int CurrentRosterRecentMatchLimit = 8;
 
-        private async Task<CurrentPlayerImportResult> EnsureCurrentPlayersForTeamsAsync(int tournamentId, IReadOnlyCollection<string> teamNames, DateTime contestDay)
+        private async Task<CurrentPlayerImportResult> EnsureCurrentPlayersForMatchDayAsync(int tournamentId, IReadOnlyCollection<string> teamNames, IReadOnlyCollection<int> matchIds, DateTime contestDay)
         {
             var imported = 0;
             var playerKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -454,7 +448,27 @@ namespace QemmaProject.Controllers
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            if (normalizedTeamNames.Count == 0) return new CurrentPlayerImportResult(imported, playerKeys);
+            if (normalizedTeamNames.Count == 0) return new CurrentPlayerImportResult(imported, playerKeys, "no-teams-for-date");
+
+            var sameDayLineups = matchIds.Count == 0 ? new List<MatchLineup>() : await _context.MatchLineups
+                .Include(l => l.Match).ThenInclude(m => m.HomeTeam)
+                .Include(l => l.Match).ThenInclude(m => m.AwayTeam)
+                .Where(l => matchIds.Contains(l.MatchId))
+                .ToListAsync();
+
+            if (sameDayLineups.Count > 0)
+            {
+                foreach (var lineup in sameDayLineups)
+                {
+                    var teamName = ResolveLineupTeamName(lineup);
+                    if (string.IsNullOrWhiteSpace(teamName)) continue;
+
+                    playerKeys.Add(BuildPlayerKey(lineup.PlayerName, teamName));
+                    imported += await UpsertPlayerAsync(lineup.PlayerName, teamName, lineup.Position, lineup.Number);
+                }
+
+                return new CurrentPlayerImportResult(imported, playerKeys, "today-match-lineups");
+            }
 
             var earliestCurrentRosterDate = DateOnly.FromDateTime(contestDay.AddDays(-CurrentRosterLookbackDays));
             var contestMatchDay = DateOnly.FromDateTime(contestDay);
@@ -494,12 +508,12 @@ namespace QemmaProject.Controllers
                 imported += await UpsertPlayerAsync(scorer.PlayerName, scorer.TeamName, "FW", null);
             }
 
-            return new CurrentPlayerImportResult(imported, playerKeys);
+            return new CurrentPlayerImportResult(imported, playerKeys, "recent-team-lineups-and-scorers-fallback");
         }
 
-        private sealed record CurrentPlayerImportResult(int Imported, HashSet<string> PlayerKeys)
+        private sealed record CurrentPlayerImportResult(int Imported, HashSet<string> PlayerKeys, string Source)
         {
-            public static CurrentPlayerImportResult Empty { get; } = new(0, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+            public static CurrentPlayerImportResult Empty { get; } = new(0, new HashSet<string>(StringComparer.OrdinalIgnoreCase), "no-matches-for-date");
         }
 
         private static string BuildPlayerKey(string? playerName, string? teamName) => $"{playerName?.Trim().ToLowerInvariant()}|{teamName?.Trim().ToLowerInvariant()}";
