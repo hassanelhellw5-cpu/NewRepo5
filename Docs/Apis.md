@@ -102,13 +102,16 @@ Use this as the frontend checklist for every exposed endpoint in the current bac
 | Method | Endpoint | Frontend use |
 |---|---|---|
 | POST | `/api/fantasy/players/import` | Admin/import players. |
-| POST | `/api/fantasy/contests` | Create contest. |
-| POST | `/api/fantasy/contests/join` | Join contest by code. |
+| POST | `/api/fantasy/contests` | Create a free contest; do not send coins/fees. |
+| POST | `/api/fantasy/contests/join` | Join free contest by code. |
 | GET | `/api/fantasy/tournaments/{tournamentId:int}/today/players` | Player picker. |
 | POST | `/api/fantasy/contests/{contestId:int}/entries` | Submit fantasy entry. |
 | POST | `/api/fantasy/contests/{contestId:int}/score` | Admin/manual scoring. |
+| GET | `/api/fantasy/contests/{contestId:int}` | Full contest details, current user entry, leaderboard, matches. |
 | GET | `/api/fantasy/contests/{contestId:int}/leaderboard` | Contest leaderboard. |
 | GET | `/api/fantasy/contests/code/{code}` | Resolve contest invite code. |
+| GET | `/api/fantasy/my?userId={userId}` | User fantasy contests. |
+| GET | `/api/fantasy/contests/my?userId={userId}` | Alias for user fantasy contests. |
 | POST | `/api/fantasy/contests/{contestId:int}/convert-to-knockout` | Convert contest format. |
 | POST | `/api/fantasy/contests/{contestId:int}/advance-knockout-round` | Advance knockout bracket. |
 | GET | `/api/fantasy/contests/{contestId:int}/knockout` | Knockout bracket view. |

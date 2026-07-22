@@ -91,6 +91,7 @@ type UserCompetitionsResponse = {
 
 - `format = 0`: leaderboard.
 - `format = 1`: knockout.
+- إنشاء مسابقة الفانتازي مجاني تمامًا: لا ترسل `priceCoins` أو `entryFeeCoins` أو أي بيانات دفع، ولا تربط زر الإنشاء بمحفظة الكوينز.
 - بعد النجاح خزّن `id` و`code` وافتح شاشة التفاصيل.
 
 ### الانضمام بالكود

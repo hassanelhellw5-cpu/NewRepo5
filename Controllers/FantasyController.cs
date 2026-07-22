@@ -53,6 +53,8 @@ namespace QemmaProject.Controllers
             var owner = await _context.Users.FirstOrDefaultAsync(u => u.Id == request.OwnerUserId);
             if (owner == null) return NotFound(new { message = "Owner user not found." });
 
+            // Fantasy contests are intentionally free. Do not debit Qemma Coins
+            // or accept legacy client-side fee fields during creation.
             var contest = new FantasyContest
             {
                 TournamentId = request.TournamentId,
