@@ -358,3 +358,113 @@ await connection.invoke('LeaveOtherSportRoom', eventId);
 - SignalR يعيد join للـ rooms بعد reconnect.
 - لا يوجد path فيه `/api/api`.
 - كل request محمي يرسل Bearer token و`userId` الخاص بنفس المستخدم.
+
+## 9) Fan Engagement premium additions للفرونت
+
+### تجربة الماتش التفاعلية في endpoint واحد
+
+`GET /api/fan-engagement/matches/{matchId}/experience?userId={userId}`
+
+استخدمه عند فتح صفحة الماتش أو drawer الـ Fan Zone. الرد يجمع:
+
+- `match`: بيانات الماتش الأساسية.
+- `user.fanPass`: هل المستخدم اشترى fan pass للماتش أم لا.
+- `store.items`: cosmetics/limited items المناسبة للماتش.
+- `store.matchPassDefaultPriceCoins`: السعر الافتراضي للـ fan pass.
+- `store.pinnedCheerMinCoins`: أقل تكلفة لتثبيت cheer في الشات.
+- `store.premiumBurstMinCoins`: أقل تكلفة لـ reaction burst.
+- `supporterLeaderboard`: ترتيب الداعمين للماتش.
+- `signalR`: اسم الـ hub والـ room والـ events المطلوبة.
+
+Frontend UI المقترح:
+
+1. اعرض `Fan Zone` tab في صفحة الماتش.
+2. لو `user.fanPass == null` اعرض CTA: `احصل على تذكار الماتش`.
+3. اعرض `store.items` كـ cards بنفس design system الخاص بالمتجر.
+4. اعرض `supporterLeaderboard` في sidebar صغير باسم `Top Supporters`.
+5. استخدم `signalR.room` مع `JoinMatchRoom(matchId)` لتحديث الشات والريأكشن لحظيًا.
+
+### شراء Fan Pass للماتش
+
+`POST /api/fan-engagement/matches/{matchId}/fan-pass` — `Auth`
+
+```json
+{
+  "userId": "current-user-id",
+  "title": "Derby Night",
+  "badgeText": "حضرت الديربي",
+  "priceCoins": 25
+}
+```
+
+بعد النجاح:
+
+- اعمل refetch لـ `/experience`.
+- اعرض badge في بروفايل المستخدم أو أعلى chat composer.
+
+### Pinned cheer / pinned chat
+
+`POST /api/fan-engagement/matches/{matchId}/chat` — `Auth`
+
+```json
+{
+  "userId": "current-user-id",
+  "message": "يلا يا أبطال!",
+  "pin": true,
+  "pinCoins": 10,
+  "pinMinutes": 5
+}
+```
+
+الـ backend سيبعت SignalR event باسم `ReceiveMatchChatMessage`. في الفرونت:
+
+- لو `isPinned = true` اعرض الرسالة فوق الشات حتى `pinnedUntil`.
+- بعد انتهاء الوقت، أنزلها للترتيب الطبيعي أو اعمل refetch للشات.
+
+### Premium reaction burst
+
+`POST /api/fan-engagement/matches/{matchId}/reactions` — `Auth`
+
+Reaction عادي:
+
+```json
+{
+  "userId": "current-user-id",
+  "reaction": "🔥"
+}
+```
+
+Premium burst:
+
+```json
+{
+  "userId": "current-user-id",
+  "reaction": "goal",
+  "message": "جوووول!",
+  "premiumBurst": true,
+  "burstCoins": 5
+}
+```
+
+الـ SignalR event `ReceiveMatchReaction` سيرجع:
+
+- `isPremiumBurst`: لو true شغل animation أكبر.
+- `animation`: مثل `goal-fire` أو `trophy-confetti` أو `heart-burst` أو `stadium-burst`.
+- `burstCoins`: عدد الكوينز المدفوعة.
+
+Design integration:
+
+- استخدم نفس ألوان الفريق/الثيم من `customThemePalette` لو موجود.
+- خلي الـ premium burst يظهر 1.5–2 ثانية فقط حتى لا يزعج المشاهدة.
+- اعمل throttle في الواجهة لمنع spam على الزر.
+
+### Supporter leaderboard
+
+`GET /api/fan-engagement/matches/{matchId}/supporter-leaderboard?take=10`
+
+يعتمد على:
+
+- fan passes المشتراة للماتش.
+- pinned chat/cheers المدفوعة.
+
+اعرضه كـ mini leaderboard ولا تجعله يؤثر على نقاط الفانتازي أو التوقعات، حتى تفضل التجربة عادلة وغير pay-to-win.

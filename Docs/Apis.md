@@ -67,13 +67,16 @@ Use this as the frontend checklist for every exposed endpoint in the current bac
 | GET | `/api/fan-engagement/events/limited-store` | Limited-time store. |
 | POST | `/api/fan-engagement/supporter/subscribe` | Supporter subscription flow. |
 | GET | `/api/fan-engagement/profile/{userId}/premium` | Premium profile header/cards. |
+| GET | `/api/fan-engagement/matches/{matchId:int}/experience?userId={userId}` | Match engagement store, fan pass status, supporter leaderboard, SignalR config. |
+| GET | `/api/fan-engagement/matches/{matchId:int}/supporter-leaderboard` | Match supporter leaderboard. |
 | POST | `/api/fan-engagement/matches/{matchId:int}/fan-pass` | Unlock match fan pass. |
 | POST | `/api/fan-engagement/custom-tournaments/requests` | User custom tournament request. |
 | POST | `/api/fan-engagement/cosmetics/{cosmeticId:int}/purchase` | Buy/unlock cosmetic. |
 | POST | `/api/fan-engagement/cosmetics/{cosmeticId:int}/equip` | Equip cosmetic. |
 | GET | `/api/fan-engagement/cheers` | Quick cheer phrases. |
-| POST | `/api/fan-engagement/matches/{matchId:int}/chat` | Send match chat message. |
+| POST | `/api/fan-engagement/matches/{matchId:int}/chat` | Send match chat message or pinned cheer. |
 | GET | `/api/fan-engagement/matches/{matchId:int}/chat` | Read match chat messages. |
+| POST | `/api/fan-engagement/matches/{matchId:int}/reactions` | Send normal reaction or premium reaction burst. |
 | GET | `/api/fan-engagement/matches/{matchId:int}/live-readiness` | Enable/disable watch/live UI. |
 
 ## Admin `/api/admin` and `/api/admin/cosmetics`

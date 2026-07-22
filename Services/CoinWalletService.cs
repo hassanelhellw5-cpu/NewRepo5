@@ -15,6 +15,7 @@ namespace QemmaProject.Services
         public const string BuySupporter = "BuySupporter";
         public const string LeagueCustomization = "LeagueCustomization";
         public const string PinLiveComment = "PinLiveComment";
+        public const string PremiumReactionBurst = "PremiumReactionBurst";
     }
 
     public class CoinWalletService

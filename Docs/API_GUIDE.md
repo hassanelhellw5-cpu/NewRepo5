@@ -159,13 +159,16 @@ Environment variables المهمة للسكريبرز:
 | GET | `/api/fan-engagement/events/limited-store` | Public | عروض المتجر المحدودة. |
 | POST | `/api/fan-engagement/supporter/subscribe` | Auth | اشتراك supporter. |
 | GET | `/api/fan-engagement/profile/{userId}/premium` | Public | حالة premium/profile. |
+| GET | `/api/fan-engagement/matches/{matchId}/experience?userId={userId}` | Public/Auth | تجربة تفاعل الماتش: store، fan pass، leaderboard، SignalR config. |
+| GET | `/api/fan-engagement/matches/{matchId}/supporter-leaderboard` | Public | ترتيب الداعمين للماتش. |
 | POST | `/api/fan-engagement/matches/{matchId}/fan-pass` | Auth | شراء/تفعيل fan pass. |
 | POST | `/api/fan-engagement/custom-tournaments/requests` | Auth | طلب بطولة مخصصة. |
 | POST | `/api/fan-engagement/cosmetics/{cosmeticId}/purchase` | Auth | شراء cosmetic. |
 | POST | `/api/fan-engagement/cosmetics/{cosmeticId}/equip` | Auth | تجهيز cosmetic. |
 | GET | `/api/fan-engagement/cheers` | Public | قائمة cheers. |
-| POST | `/api/fan-engagement/matches/{matchId}/chat` | Auth | إرسال رسالة شات ماتش. |
+| POST | `/api/fan-engagement/matches/{matchId}/chat` | Auth | إرسال رسالة شات ماتش، ويمكن تثبيتها بـ coins. |
 | GET | `/api/fan-engagement/matches/{matchId}/chat` | Public | قراءة شات ماتش. |
+| POST | `/api/fan-engagement/matches/{matchId}/reactions` | Auth | إرسال reaction عادي أو premium burst. |
 | GET | `/api/fan-engagement/matches/{matchId}/live-readiness` | Public | جاهزية اللايف/الشات/الفان features. |
 
 ## 8) Fantasy API
