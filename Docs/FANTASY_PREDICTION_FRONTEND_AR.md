@@ -404,3 +404,9 @@ python Scrapers/yallakora_video_scraper.py
 - لا ترسل مسار مكرر مثل `/api/api/...`.
 - لو Vite proxy مضبوط على `/qemma-api -> backend` فالاستدعاء الصحيح من المتصفح يكون `/qemma-api/api/other-sports/sports`، والباك إند يستقبلها كـ `/api/other-sports/sports` بعد إزالة prefix من proxy.
 - اعرض رسالة خطأ واضحة لو رجع 503 من قاعدة البيانات؛ ده غالبًا إعداد connection string وليس مشكلة UI.
+
+## 7) دليل تفصيلي محدث للفرونت
+
+للتفاصيل الكاملة الخاصة بالـ dashboard، فانتازي، دوريات التوقعات، SignalR، error handling، وchecklist قبل التسليم، راجع:
+
+`Docs/FANTASY_PREDICTION_FRONTEND_INTEGRATION_AR.md`

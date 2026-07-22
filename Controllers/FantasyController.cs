@@ -227,6 +227,7 @@ namespace QemmaProject.Controllers
         }
 
 
+        [HttpGet("my")]
         [HttpGet("contests/my")]
         public async Task<IActionResult> MyContests([FromQuery] string userId)
         {
@@ -270,6 +271,85 @@ namespace QemmaProject.Controllers
                 .ToListAsync();
 
             return Ok(contests);
+        }
+
+
+        [AllowAnonymous]
+        [HttpGet("contests/{contestId:int}")]
+        public async Task<IActionResult> GetContestDetails(int contestId, [FromQuery] string? userId = null)
+        {
+            if (!string.IsNullOrWhiteSpace(userId) && !this.IsSelfOrAdmin(userId)) return this.ForbiddenUser();
+
+            var contest = await _context.FantasyContests
+                .Include(c => c.Tournament)
+                .FirstOrDefaultAsync(c => c.Id == contestId);
+            if (contest == null) return NotFound(new { message = "Contest not found." });
+
+            var entries = await _context.FantasyEntries
+                .Include(e => e.User)
+                .Include(e => e.Picks).ThenInclude(p => p.Player)
+                .Where(e => e.FantasyContestId == contestId)
+                .OrderBy(e => e.IsKnockoutEliminated)
+                .ThenByDescending(e => e.KnockoutRound)
+                .ThenByDescending(e => e.TotalPoints)
+                .ThenBy(e => e.CreatedAt)
+                .ToListAsync();
+
+            var matches = await _context.Matches
+                .Include(m => m.HomeTeam)
+                .Include(m => m.AwayTeam)
+                .Where(m => m.TournamentId == contest.TournamentId && m.MatchDate == DateOnly.FromDateTime(contest.ContestDate.Date))
+                .OrderBy(m => m.Time)
+                .ToListAsync();
+
+            return Ok(new
+            {
+                contest = new
+                {
+                    contest.Id,
+                    contest.Name,
+                    contest.Code,
+                    contest.TournamentId,
+                    tournament = contest.Tournament?.Name,
+                    contest.ContestDate,
+                    contest.OwnerUserId,
+                    contest.IsPublic,
+                    contest.IsOpen,
+                    contest.MaxMembers,
+                    contest.Format,
+                    contest.KnockoutCurrentRound,
+                    contest.KnockoutWinnerBonusPoints,
+                    contest.KnockoutActivatedAt,
+                    contest.KnockoutCompletedAt
+                },
+                currentUserEntry = string.IsNullOrWhiteSpace(userId) ? null : entries
+                    .Where(e => e.UserId == userId)
+                    .Select(ToFantasyEntrySummary)
+                    .FirstOrDefault(),
+                leaderboard = entries.Select((entry, index) => new
+                {
+                    rank = index + 1,
+                    entry = ToFantasyEntrySummary(entry)
+                }),
+                matches = matches.Select(m => new
+                {
+                    m.Id,
+                    m.MatchId,
+                    homeTeam = m.HomeTeam.Name,
+                    awayTeam = m.AwayTeam.Name,
+                    m.MatchDate,
+                    m.Time,
+                    m.Status,
+                    m.ScoreHome,
+                    m.ScoreAway
+                }),
+                links = new
+                {
+                    availablePlayers = $"/api/fantasy/tournaments/{contest.TournamentId}/today/players?date={contest.ContestDate:yyyy-MM-dd}",
+                    leaderboard = $"/api/fantasy/contests/{contest.Id}/leaderboard",
+                    knockout = $"/api/fantasy/contests/{contest.Id}/knockout"
+                }
+            });
         }
 
         [AllowAnonymous]
@@ -359,6 +439,25 @@ namespace QemmaProject.Controllers
             if (contest == null) return NotFound(new { message = "Contest not found." });
             return Ok(BuildFantasyKnockoutResponse(contest, contest.Entries));
         }
+
+
+        private static object ToFantasyEntrySummary(FantasyEntry entry) => new
+        {
+            entry.Id,
+            entry.UserId,
+            userName = entry.User?.UserName,
+            entry.Role,
+            entry.TotalPoints,
+            entry.FreeTransfersBanked,
+            entry.TransfersMadeThisRound,
+            entry.TransferPenaltyPoints,
+            entry.KnockoutSeed,
+            entry.KnockoutRound,
+            entry.IsKnockoutEliminated,
+            entry.CreatedAt,
+            entry.UpdatedAt,
+            picks = entry.Picks.Select(p => new { p.PlayerId, p.Player.Name, p.Player.TeamName, p.Player.Position, p.Player.ShirtNumber, p.Player.ImageUrl, p.Points })
+        };
 
         private bool IsContestOwnerOrAdmin(FantasyContest contest) => User.IsInRole("Admin") || this.IsSelfOrAdmin(contest.OwnerUserId);
         private static bool IsKnockoutJoinLocked(FantasyContest contest) => contest.Format == PredictionLeagueFormat.Knockout && (contest.KnockoutCurrentRound > 1 || contest.KnockoutActivatedAt.HasValue && !contest.IsOpen);
