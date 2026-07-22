@@ -173,13 +173,16 @@ Environment variables المهمة للسكريبرز:
 | Method | Endpoint | مين يستخدمه | الغرض |
 | --- | --- | --- | --- |
 | POST | `/api/fantasy/players/import` | Admin | استيراد لاعبين fantasy. |
-| POST | `/api/fantasy/contests` | Admin | إنشاء contest. |
-| POST | `/api/fantasy/contests/join` | Auth | انضمام contest. |
+| POST | `/api/fantasy/contests` | Auth | إنشاء contest مجاني؛ لا ترسل أي coins/fees. |
+| POST | `/api/fantasy/contests/join` | Auth | انضمام contest مجاني بالكود. |
 | GET | `/api/fantasy/tournaments/{tournamentId}/today/players` | Public | لاعبين بطولة اليوم. |
 | POST | `/api/fantasy/contests/{contestId}/entries` | Auth | إرسال تشكيلة. |
 | POST | `/api/fantasy/contests/{contestId}/score` | Admin | حساب نقاط contest. |
+| GET | `/api/fantasy/contests/{contestId}` | Public/Auth | تفاصيل contest كاملة، ومع `userId` يرجع current user entry. |
 | GET | `/api/fantasy/contests/{contestId}/leaderboard` | Public | ترتيب contest. |
 | GET | `/api/fantasy/contests/code/{code}` | Public | contest بالكود. |
+| GET | `/api/fantasy/my?userId={userId}` | Auth | مسابقات الفانتازي التي دخلها المستخدم. |
+| GET | `/api/fantasy/contests/my?userId={userId}` | Auth | alias لنفس قائمة مسابقات المستخدم. |
 | POST | `/api/fantasy/contests/{contestId}/convert-to-knockout` | Auth | تحويل knockout. |
 | POST | `/api/fantasy/contests/{contestId}/advance-knockout-round` | Auth | تقدم دور knockout. |
 | GET | `/api/fantasy/contests/{contestId}/knockout` | Public | عرض knockout bracket. |
