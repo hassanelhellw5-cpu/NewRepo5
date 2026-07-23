@@ -376,6 +376,15 @@ def run_once(argv: list[str] | None, args) -> int:
             live_script = "unified_live_stream_linker.py" if _is_enabled(env, "ENABLE_UNIFIED_LIVE_LINKER", True) else "live_stream_scraper.py"
             overall_code = max(overall_code, _run(live_script, env, optional=True))
 
+        # Optional one-shot near-live poll for other sports. The standalone
+        # other_sports_live_poller.py is normally meant to run as its own
+        # long-running scheduler process, so run_all.py keeps it OFF by default
+        # and only invokes one iteration when explicitly enabled.
+        if _is_enabled(env, "ENABLE_OTHER_SPORTS_LIVE_POLLER_ONCE", False):
+            live_other_env = env.copy()
+            live_other_env["LIVE_UPDATE_ONCE"] = "1"
+            overall_code = max(overall_code, _run("other_sports_live_poller.py", live_other_env, optional=True))
+
     if target_dates and _is_enabled(os.environ, "ENABLE_NEWS_SCRAPER", True):
         news_env = os.environ.copy()
         _apply_appsettings_env(news_env, settings)

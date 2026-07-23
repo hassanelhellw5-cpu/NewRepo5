@@ -217,8 +217,11 @@ namespace QemmaProject.BackgroundTasks
                 var liveIntervalSeconds = _configuration.GetValue("SportsSync:LiveIntervalSeconds", 5).ToString();
                 var todayEnvironment = DateEnvironment(DateTime.UtcNow.ToString("yyyy-MM-dd"));
 
-                var yallaKoraLoopSeconds = _configuration.GetValue("SportsSync:YallaKoraEngineLoopSeconds", 5);
-                await RunPythonScript(pythonPath, Path.Combine(scraperPath, "yallakora_engine.py"), $"matches --today --loop-seconds {Math.Max(5, yallaKoraLoopSeconds)}", stoppingToken, todayEnvironment);
+                // The worker itself already repeats this live cycle every
+                // SportsSync:LiveIntervalSeconds. Keep each Python invocation
+                // one-shot so the next detail/stat updater can run in the same
+                // cycle instead of being blocked behind an infinite scraper loop.
+                await RunPythonScript(pythonPath, Path.Combine(scraperPath, "yallakora_engine.py"), "matches --today", stoppingToken, todayEnvironment);
                 await RunPythonScript(pythonPath, Path.Combine(scraperPath, "live_match_updater.py"), string.Empty, stoppingToken, new Dictionary<string, string?>(todayEnvironment)
                 {
                     ["LIVE_UPDATE_ONCE"] = "1",

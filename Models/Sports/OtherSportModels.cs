@@ -85,6 +85,44 @@ namespace QemmaProject.Models.Sports
         public DateTime PublishedAt { get; set; } = DateTime.UtcNow;
     }
 
+    public class OtherSportProfile
+    {
+        public int Id { get; set; }
+        public string SportKey { get; set; } = string.Empty;
+        public string ExternalId { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string TeamName { get; set; } = string.Empty;
+        public string Country { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty;
+        public int EventsCount { get; set; }
+        public int WinsOrFirstPlaces { get; set; }
+        public decimal Points { get; set; }
+        public string ImageUrl { get; set; } = string.Empty;
+        public string Source { get; set; } = string.Empty;
+        public string SourceUrl { get; set; } = string.Empty;
+        public string MetadataJson { get; set; } = "{}";
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    }
+
+    public class OtherSportTeamProfile
+    {
+        public int Id { get; set; }
+        public string SportKey { get; set; } = string.Empty;
+        public string ExternalId { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Country { get; set; } = string.Empty;
+        public int EventsCount { get; set; }
+        public int WinsOrFirstPlaces { get; set; }
+        public decimal Points { get; set; }
+        public string LogoUrl { get; set; } = string.Empty;
+        public string Source { get; set; } = string.Empty;
+        public string SourceUrl { get; set; } = string.Empty;
+        public string MetadataJson { get; set; } = "{}";
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    }
+
     public class OtherSportStream
     {
         public int Id { get; set; }
