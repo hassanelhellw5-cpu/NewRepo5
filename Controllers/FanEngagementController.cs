@@ -80,6 +80,66 @@ namespace QemmaProject.Controllers
             return Ok(items);
         }
 
+
+        [AllowAnonymous]
+        [HttpGet("subscription-packages")]
+        public IActionResult GetSubscriptionPackages()
+        {
+            var packages = new[]
+            {
+                new
+                {
+                    code = "supporter_monthly",
+                    name = "Supporter Monthly",
+                    priceCoins = 99m,
+                    durationDays = 30,
+                    recommended = true,
+                    includes = new[]
+                    {
+                        "Supporter badge on premium profile",
+                        "Access to supporter-only profile styling",
+                        "Priority visual identity in match chat",
+                        "Eligible for supporter-only cosmetics drops"
+                    },
+                    ctaEndpoint = "/api/fan-engagement/supporter/subscribe"
+                },
+                new
+                {
+                    code = "matchday_theme_pack",
+                    name = "Match Day Theme Pack",
+                    priceCoins = 149m,
+                    durationDays = 30,
+                    recommended = false,
+                    includes = new[]
+                    {
+                        "Premium profile theme palette for match days",
+                        "Chat bubble styling via equipped theme",
+                        "Works with team/final limited cosmetics",
+                        "Best paired with a match fan pass"
+                    },
+                    ctaEndpoint = "/api/fan-engagement/cosmetics/{cosmeticId}/purchase"
+                },
+                new
+                {
+                    code = "derby_vip",
+                    name = "Derby VIP",
+                    priceCoins = 249m,
+                    durationDays = 30,
+                    recommended = false,
+                    includes = new[]
+                    {
+                        "Supporter subscription month",
+                        "Premium reaction burst allowance via wallet coins",
+                        "Recommended pinned cheer budget",
+                        "Showcase badge/frame from limited store when purchased"
+                    },
+                    ctaEndpoint = "/api/fan-engagement/supporter/subscribe"
+                }
+            };
+
+            return Ok(packages);
+        }
+
         [HttpPost("supporter/subscribe")]
         public async Task<IActionResult> SubscribeSupporter([FromBody] SubscribeSupporterRequest request)
         {

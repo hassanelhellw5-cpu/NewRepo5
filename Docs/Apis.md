@@ -65,6 +65,7 @@ Use this as the frontend checklist for every exposed endpoint in the current bac
 |---|---|---|
 | GET | `/api/fan-engagement/cosmetics` | Store/catalog. |
 | GET | `/api/fan-engagement/events/limited-store` | Limited-time store. |
+| GET | `/api/fan-engagement/subscription-packages` | Paid subscription/theme packages and included features. |
 | POST | `/api/fan-engagement/supporter/subscribe` | Supporter subscription flow. |
 | GET | `/api/fan-engagement/profile/{userId}/premium` | Premium profile header/cards. |
 | GET | `/api/fan-engagement/matches/{matchId:int}/experience?userId={userId}` | Match engagement store, fan pass status, supporter leaderboard, SignalR config. |
@@ -157,7 +158,9 @@ Use this as the frontend checklist for every exposed endpoint in the current bac
 
 | Method | Endpoint | Frontend use |
 |---|---|---|
+| GET | `/api/players?q={name}&teamName={team}&take=50` | Player search/list. |
 | GET | `/api/players/{playerId:int}/card` | Player card. |
+| GET | `/api/players/{playerId:int}/matches` | Player match-by-match stats. |
 | PUT | `/api/players/{playerId:int}/image` | Admin/player image update. |
 | GET | `/api/matches/{matchId:int}/player-cards` | Match player cards. |
 | GET | `/api/matches/{matchId:int}/summaries` | Match summaries. |

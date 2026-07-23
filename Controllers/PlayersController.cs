@@ -13,6 +13,44 @@ namespace QemmaProject.Controllers
         private readonly AppDbContext _context;
         public PlayersController(AppDbContext context) => _context = context;
 
+
+        [HttpGet("players")]
+        public async Task<IActionResult> SearchPlayers([FromQuery] string? q = null, [FromQuery] string? teamName = null, [FromQuery] int take = 50)
+        {
+            take = Math.Clamp(take, 1, 100);
+            var query = _context.Players.AsNoTracking().AsQueryable();
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var term = q.Trim();
+                query = query.Where(p => p.Name.Contains(term) || (p.NormalizedName != null && p.NormalizedName.Contains(term.ToLower())));
+            }
+            if (!string.IsNullOrWhiteSpace(teamName))
+            {
+                var team = teamName.Trim();
+                query = query.Where(p => p.TeamName != null && p.TeamName == team);
+            }
+
+            var players = await query
+                .OrderBy(p => p.TeamName)
+                .ThenBy(p => p.Name)
+                .Take(take)
+                .Select(p => new
+                {
+                    p.Id,
+                    p.Name,
+                    p.TeamName,
+                    p.Position,
+                    p.ShirtNumber,
+                    p.ImageUrl,
+                    p.Nationality,
+                    p.Age,
+                    cardUrl = $"/api/players/{p.Id}/card"
+                })
+                .ToListAsync();
+
+            return Ok(players);
+        }
+
         [HttpGet("players/{playerId:int}/card")]
         public async Task<IActionResult> PlayerCard(int playerId)
         {
@@ -61,6 +99,49 @@ namespace QemmaProject.Controllers
             });
         }
 
+
+        [HttpGet("players/{playerId:int}/matches")]
+        public async Task<IActionResult> PlayerMatches(int playerId, [FromQuery] int take = 25)
+        {
+            take = Math.Clamp(take, 1, 100);
+            var playerExists = await _context.Players.AnyAsync(p => p.Id == playerId);
+            if (!playerExists) return NotFound(new { message = "Player not found." });
+
+            var matches = await _context.PlayerMatchStats
+                .AsNoTracking()
+                .Include(s => s.Match).ThenInclude(m => m.HomeTeam)
+                .Include(s => s.Match).ThenInclude(m => m.AwayTeam)
+                .Where(s => s.PlayerId == playerId)
+                .OrderByDescending(s => s.Match.MatchDate)
+                .ThenByDescending(s => s.Match.Time)
+                .Take(take)
+                .Select(s => new
+                {
+                    s.MatchId,
+                    externalMatchId = s.Match.MatchId,
+                    s.Match.MatchDate,
+                    s.Match.Time,
+                    homeTeam = s.Match.HomeTeam.Name,
+                    awayTeam = s.Match.AwayTeam.Name,
+                    s.MinutesPlayed,
+                    s.Started,
+                    s.Substitute,
+                    s.Goals,
+                    s.Assists,
+                    s.YellowCards,
+                    s.RedCards,
+                    s.Shots,
+                    s.KeyPasses,
+                    s.Saves,
+                    s.CleanSheet,
+                    s.FantasyPoints,
+                    s.Rating
+                })
+                .ToListAsync();
+
+            return Ok(new { playerId, matches });
+        }
+
         [Authorize(Roles = "Admin")]
         [HttpPut("players/{playerId:int}/image")]
         public async Task<IActionResult> UpdatePlayerImage(int playerId, [FromBody] UpdatePlayerImageRequest request)
@@ -76,7 +157,37 @@ namespace QemmaProject.Controllers
         }
 
         [HttpGet("matches/{matchId:int}/player-cards")]
-        public async Task<IActionResult> MatchPlayerCards(int matchId) => Ok(await _context.PlayerMatchStats.Where(s => s.MatchId == matchId).Include(s => s.Player).Select(s => new { s.PlayerId, s.Player.Name, team = s.Player.TeamName, s.Player.ImageUrl, s.Rating, s.Goals, s.Assists, fantasyPoints = s.FantasyPoints }).ToListAsync());
+        public async Task<IActionResult> MatchPlayerCards(int matchId)
+        {
+            var statCards = await _context.PlayerMatchStats
+                .Where(s => s.MatchId == matchId)
+                .Include(s => s.Player)
+                .Select(s => new { s.PlayerId, s.Player.Name, team = s.Player.TeamName, s.Player.ImageUrl, s.Rating, s.Goals, s.Assists, fantasyPoints = s.FantasyPoints, source = "player-match-stats" })
+                .ToListAsync();
+            if (statCards.Count > 0) return Ok(statCards);
+
+            var lineupCards = await _context.MatchLineups
+                .Where(l => l.MatchId == matchId)
+                .Include(l => l.Match).ThenInclude(m => m.HomeTeam)
+                .Include(l => l.Match).ThenInclude(m => m.AwayTeam)
+                .OrderBy(l => l.TeamSide)
+                .ThenBy(l => l.IsSubstitute)
+                .ThenBy(l => l.PlayerName)
+                .Select(l => new
+                {
+                    PlayerId = 0,
+                    Name = l.PlayerName,
+                    team = l.TeamSide == "Home" ? l.Match.HomeTeam.Name : l.Match.AwayTeam.Name,
+                    ImageUrl = (string?)null,
+                    Rating = 0m,
+                    Goals = 0,
+                    Assists = 0,
+                    fantasyPoints = 0,
+                    source = "match-lineups"
+                })
+                .ToListAsync();
+            return Ok(lineupCards);
+        }
 
         private static IEnumerable<object> ParseJsonArray(string? json)
         {

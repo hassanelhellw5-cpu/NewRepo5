@@ -363,6 +363,10 @@ def run_once(argv: list[str] | None, args) -> int:
             overall_code = max(overall_code, _run("sofascore_fantasy_lineup_importer.py", env, optional=True))
 
         if _is_enabled(env, "ENABLE_VIDEO_SCRAPER", True):
+            if env.get("YALLASHOOT_APP_API_URL"):
+                print("[pipeline] YallaShoot app API highlights enabled through yallakora_video_scraper.py")
+            else:
+                print("[pipeline] YallaShoot app API URL not set; yallakora_video_scraper.py will use YallaKora/general highlight fallbacks")
             overall_code = max(overall_code, _run("yallakora_video_scraper.py", env, optional=True))
 
         if _is_enabled(env, "ENABLE_YALLASHOOT_APPIUM_HIGHLIGHTS", False):

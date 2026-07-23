@@ -157,6 +157,7 @@ Environment variables المهمة للسكريبرز:
 | --- | --- | --- | --- |
 | GET | `/api/fan-engagement/cosmetics` | Public | عرض cosmetics. |
 | GET | `/api/fan-engagement/events/limited-store` | Public | عروض المتجر المحدودة. |
+| GET | `/api/fan-engagement/subscription-packages` | Public | باقات الاشتراك والثيمات المدفوعة ومحتوياتها. |
 | POST | `/api/fan-engagement/supporter/subscribe` | Auth | اشتراك supporter. |
 | GET | `/api/fan-engagement/profile/{userId}/premium` | Public | حالة premium/profile. |
 | GET | `/api/fan-engagement/matches/{matchId}/experience?userId={userId}` | Public/Auth | تجربة تفاعل الماتش: store، fan pass، leaderboard، SignalR config. |

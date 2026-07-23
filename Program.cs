@@ -153,6 +153,19 @@ app.UseStaticFiles();
 
 app.UseCors("Frontend");
 
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (InvalidOperationException ex) when (ex.Message.Contains("Insufficient Qemma Coins", StringComparison.OrdinalIgnoreCase))
+    {
+        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+        await context.Response.WriteAsJsonAsync(new { message = "Insufficient Qemma Coins balance." });
+    }
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 
