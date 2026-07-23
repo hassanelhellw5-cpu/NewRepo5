@@ -30,7 +30,7 @@ namespace QemmaProject.Models.Requests
     public class CreateCustomTournamentRequest { public string OrganizerUserId { get; set; } = string.Empty; public string Name { get; set; } = string.Empty; public string? CommunityName { get; set; } public string? ContactInfo { get; set; } public string? RequestedFeatures { get; set; } public decimal EstimatedBudgetCoins { get; set; } }
     public class EquipCosmeticRequest { public string UserId { get; set; } = string.Empty; }
     public class SendChatMessageRequest { public string UserId { get; set; } = string.Empty; public string Message { get; set; } = string.Empty; public int? CheerPhraseId { get; set; } public bool Pin { get; set; } public decimal PinCoins { get; set; } public int PinMinutes { get; set; } }
-    public class MatchReactionRequest { public string UserId { get; set; } = string.Empty; public string Reaction { get; set; } = string.Empty; public string? Message { get; set; } public int? MatchEventId { get; set; } }
+    public class MatchReactionRequest { public string UserId { get; set; } = string.Empty; public string Reaction { get; set; } = string.Empty; public string? Message { get; set; } public int? MatchEventId { get; set; } public bool PremiumBurst { get; set; } public decimal BurstCoins { get; set; } }
 
     // Admin requests
     public class AdminPaymentDecisionRequest { public string? AdminNotes { get; set; } }
