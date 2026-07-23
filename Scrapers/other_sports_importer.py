@@ -32,6 +32,8 @@ Config (all optional, sensible defaults):
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import os
 import re
@@ -94,6 +96,14 @@ FORMULA1_SCHEDULE_API_URL = os.getenv("FORMULA1_SCHEDULE_API_URL", f"https://api
 FORMULA1_RESULTS_API_URL = os.getenv("FORMULA1_RESULTS_API_URL", f"https://api.jolpi.ca/ergast/f1/{FORMULA1_SEASON}/results/").strip()
 FORMULA1_DRIVER_STANDINGS_API_URL = os.getenv("FORMULA1_DRIVER_STANDINGS_API_URL", f"https://api.jolpi.ca/ergast/f1/{FORMULA1_SEASON}/driverstandings/").strip()
 FORMULA1_CONSTRUCTOR_STANDINGS_API_URL = os.getenv("FORMULA1_CONSTRUCTOR_STANDINGS_API_URL", f"https://api.jolpi.ca/ergast/f1/{FORMULA1_SEASON}/constructorstandings/").strip()
+FORMULA1_OFFICIAL_NEWS_URL = os.getenv("FORMULA1_OFFICIAL_NEWS_URL", "https://www.formula1.com/en/latest").strip()
+FORMULA1_OFFICIAL_DRIVERS_URL = os.getenv("FORMULA1_OFFICIAL_DRIVERS_URL", "https://www.formula1.com/en/drivers").strip()
+FORMULA1_OFFICIAL_TEAMS_URL = os.getenv("FORMULA1_OFFICIAL_TEAMS_URL", "https://www.formula1.com/en/teams").strip()
+FORMULA1_LICENSED_HLS_URL = os.getenv("FORMULA1_LICENSED_HLS_URL", "").strip()
+FORMULA1_LICENSED_ALT_HLS_URL = os.getenv("FORMULA1_LICENSED_ALT_HLS_URL", "").strip()
+FORMULA1_LICENSED_STREAM_REFERER = os.getenv("FORMULA1_LICENSED_STREAM_REFERER", "").strip()
+FORMULA1_LICENSED_STREAM_USER_AGENT = os.getenv("FORMULA1_LICENSED_STREAM_USER_AGENT", DEFAULT_HEADERS["User-Agent"]).strip()
+STREAM_PROXY_SECRET = os.getenv("STREAM_PROXY_SECRET", "").strip()
 
 
 # ---------------------------------------------------------------------------
@@ -416,6 +426,70 @@ def _f1_races_from_payload(data: dict[str, Any]) -> list[dict[str, Any]]:
     return (((data.get("MRData") or {}).get("RaceTable") or {}).get("Races") or [])
 
 
+
+
+def _build_signed_hls_proxy_url(target_url: str, referer: str = "", user_agent: str = "") -> str:
+    if not target_url:
+        return ""
+    from urllib.parse import quote
+    expires = int(datetime.now(timezone.utc).timestamp()) + (6 * 60 * 60)
+    query = f"url={quote(target_url, safe='')}"
+    if STREAM_PROXY_SECRET:
+        signature = hmac.new(STREAM_PROXY_SECRET.encode("utf-8"), f"{target_url}|{expires}".encode("utf-8"), hashlib.sha256).hexdigest()
+        query += f"&expires={expires}&sig={signature}"
+    if referer:
+        query += f"&referer={quote(referer, safe='')}"
+    if user_agent:
+        query += f"&userAgent={quote(user_agent, safe='')}"
+    return f"/api/SportsData/proxy/hls?{query}"
+
+
+def _formula1_licensed_streams() -> list[dict[str, str]]:
+    streams: list[dict[str, str]] = []
+    for label, url in (("Formula 1 licensed main", FORMULA1_LICENSED_HLS_URL), ("Formula 1 licensed audio/alt", FORMULA1_LICENSED_ALT_HLS_URL)):
+        if not url:
+            continue
+        proxy_url = _build_signed_hls_proxy_url(url, FORMULA1_LICENSED_STREAM_REFERER, FORMULA1_LICENSED_STREAM_USER_AGENT)
+        streams.append({
+            "source": label,
+            "streamUrl": proxy_url,
+            "m3U8Url": proxy_url,
+            "statusMessage": "Licensed Formula 1 stream configured from environment",
+        })
+    return streams
+
+def _scrape_formula1_official_cards(url: str, source_label: str, max_items: int = 12) -> list[dict[str, str]]:
+    if not url:
+        return []
+    try:
+        response = requests.get(url, headers=DEFAULT_HEADERS, timeout=TIMEOUT)
+        response.raise_for_status()
+    except Exception as exc:
+        print(f"[other_sports] formula1 {source_label}: fetch failed: {exc}", file=sys.stderr)
+        return []
+
+    soup = BeautifulSoup(response.text, "lxml")
+    cards: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for link in soup.select("a[href]"):
+        href = urljoin(url, link.get("href") or "")
+        text = _compact(link.get_text(" "))
+        if not text or len(text) < 4 or len(text) > 220:
+            continue
+        if "formula1.com" not in href:
+            continue
+        if source_label == "news" and "/latest/article/" not in href:
+            continue
+        if href in seen:
+            continue
+        seen.add(href)
+        cards.append({"title": text, "url": href, "source": "Formula1.com"})
+        if len(cards) >= max_items:
+            break
+
+    print(f"[other_sports] formula1 official {source_label}: parsed {len(cards)} item(s)")
+    return cards
+
 def _scrape_formula1() -> list[dict[str, Any]]:
     target = _target_day().date()
     races_by_round: dict[str, dict[str, Any]] = {}
@@ -448,6 +522,12 @@ def _scrape_formula1() -> list[dict[str, Any]]:
     except Exception as exc:
         print(f"[other_sports] formula1 constructor standings API: fetch failed: {exc}", file=sys.stderr)
 
+    official_news = _scrape_formula1_official_cards(FORMULA1_OFFICIAL_NEWS_URL, "news")
+    official_drivers = _scrape_formula1_official_cards(FORMULA1_OFFICIAL_DRIVERS_URL, "drivers", max_items=30)
+    official_teams = _scrape_formula1_official_cards(FORMULA1_OFFICIAL_TEAMS_URL, "teams", max_items=20)
+
+    licensed_streams = _formula1_licensed_streams()
+
     events: list[dict[str, Any]] = []
     for round_id, race in races_by_round.items():
         raw_date = f"{race.get('date')}T{race.get('time') or '12:00:00Z'}"
@@ -465,8 +545,8 @@ def _scrape_formula1() -> list[dict[str, Any]]:
             name = _compact(" ".join([driver.get("givenName") or "", driver.get("familyName") or ""]))
             participants.append({"name": name, "teamName": _compact(constructor.get("name")), "country": _compact(driver.get("nationality")), "role": "driver", "metadataJson": json.dumps({"driverId": driver.get("driverId"), "code": driver.get("code"), "constructorId": constructor.get("constructorId")}, ensure_ascii=False)})
             results.append({"participantName": name, "rank": int(result.get("position") or 0) or None, "score": str(result.get("points") or ""), "resultText": _compact(result.get("status") or ""), "metadataJson": json.dumps({"grid": result.get("grid"), "laps": result.get("laps"), "time": result.get("Time"), "fastestLap": result.get("FastestLap")}, ensure_ascii=False)})
-        metadata = {"round": round_id, "season": race.get("season"), "driverStandings": driver_standings[:20], "constructorStandings": constructor_standings[:20]}
-        events.append({"sportKey": "formula1", "externalId": f"jolpica-f1-{FORMULA1_SEASON}-{round_id}", "title": title, "competitionName": "Formula 1", "eventDate": event_date.isoformat() + "Z", "status": "Completed" if results else ("Live" if event_date.date() == _utc_now().date() else "Scheduled"), "time": event_date.strftime("%H:%M UTC"), "venue": _compact(circuit.get("circuitName")), "country": _compact(location.get("country")), "source": "Jolpica F1", "sourceUrl": race.get("url") or FORMULA1_SCHEDULE_API_URL, "participants": participants, "results": results, "streams": [], "liveUpdates": [], "metadataJson": json.dumps(metadata, ensure_ascii=False)})
+        metadata = {"round": round_id, "season": race.get("season"), "driverStandings": driver_standings[:20], "constructorStandings": constructor_standings[:20], "officialNews": official_news, "officialDrivers": official_drivers, "officialTeams": official_teams, "officialSources": {"news": FORMULA1_OFFICIAL_NEWS_URL, "drivers": FORMULA1_OFFICIAL_DRIVERS_URL, "teams": FORMULA1_OFFICIAL_TEAMS_URL}}
+        events.append({"sportKey": "formula1", "externalId": f"jolpica-f1-{FORMULA1_SEASON}-{round_id}", "title": title, "competitionName": "Formula 1", "eventDate": event_date.isoformat() + "Z", "status": "Completed" if results else ("Live" if event_date.date() == _utc_now().date() else "Scheduled"), "time": event_date.strftime("%H:%M UTC"), "venue": _compact(circuit.get("circuitName")), "country": _compact(location.get("country")), "source": "Jolpica F1", "sourceUrl": race.get("url") or FORMULA1_SCHEDULE_API_URL, "participants": participants, "results": results, "streams": licensed_streams if event_date.date() >= _utc_now().date() else [], "liveUpdates": [], "metadataJson": json.dumps(metadata, ensure_ascii=False)})
         if len(events) >= MAX_ITEMS_PER_SOURCE:
             break
     print(f"[other_sports] formula1 Jolpica API: parsed {len(events)} events")

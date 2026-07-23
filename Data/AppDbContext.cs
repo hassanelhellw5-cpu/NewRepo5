@@ -60,6 +60,8 @@ namespace QemmaProject.Data
         public DbSet<OtherSportResult> OtherSportResults { get; set; }
         public DbSet<OtherSportLiveUpdate> OtherSportLiveUpdates { get; set; }
         public DbSet<OtherSportStream> OtherSportStreams { get; set; }
+        public DbSet<OtherSportProfile> OtherSportProfiles { get; set; }
+        public DbSet<OtherSportTeamProfile> OtherSportTeamProfiles { get; set; }
         public DbSet<UserStreak> UserStreaks { get; set; }
         public DbSet<AchievementDefinition> AchievementDefinitions { get; set; }
         public DbSet<UserAchievement> UserAchievements { get; set; }
@@ -133,6 +135,20 @@ namespace QemmaProject.Data
                 .HasIndex(u => new { u.OtherSportEventId, u.ExternalId })
                 .IsUnique()
                 .HasFilter("[ExternalId] IS NOT NULL AND [ExternalId] <> ''");
+
+            builder.Entity<OtherSportProfile>()
+                .HasIndex(p => new { p.SportKey, p.ExternalId })
+                .IsUnique();
+
+            builder.Entity<OtherSportProfile>()
+                .HasIndex(p => new { p.SportKey, p.Name });
+
+            builder.Entity<OtherSportTeamProfile>()
+                .HasIndex(t => new { t.SportKey, t.ExternalId })
+                .IsUnique();
+
+            builder.Entity<OtherSportTeamProfile>()
+                .HasIndex(t => new { t.SportKey, t.Name });
 
             builder.Entity<UserStreak>()
                 .HasIndex(s => new { s.UserId, s.Type })

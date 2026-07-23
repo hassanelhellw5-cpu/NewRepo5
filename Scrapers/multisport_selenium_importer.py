@@ -91,7 +91,7 @@ ENABLED_SOURCES = {
         # already handles all football matches/news/squads/details. This
         # importer is for every OTHER sport only.
         "atp,wta,flashscore_tennis,sofascore_tennis,sofascore_basketball,"
-        "formula1,motorsport_schedule,motorsport_news",
+        "formula1,formula1_home,motorsport_schedule,motorsport_news",
     ).split(",")
     if item.strip()
 }
@@ -131,6 +131,7 @@ SOURCES = [
     PageSource("sofascore_tennis", os.getenv("SOFASCORE_TENNIS_URL", "https://www.sofascore.com/tennis"), "tennis", "Sofascore", "event"),
     PageSource("sofascore_basketball", os.getenv("SOFASCORE_BASKETBALL_URL", "https://www.sofascore.com/basketball/livescore"), "basketball", "Sofascore", "event"),
     PageSource("formula1", os.getenv("FORMULA1_URL", "https://www.formula1.com/en/results.html"), "formula1", "Formula1.com", "event"),
+    PageSource("formula1_home", os.getenv("FORMULA1_HOME_URL", "https://www.formula1.com/"), "formula1", "Formula1.com", "news"),
     # Rich F1 schedule parser (JSON-LD aware), merged in from f1_motorsport_importer.py
     PageSource("motorsport_schedule", os.getenv("F1_MOTORSPORT_SCHEDULE_URL", f"{F1_BASE_URL}/f1/schedule/{F1_YEAR}/"), "formula1", "Motorsport.com", "f1_schedule"),
     PageSource("motorsport_news", os.getenv("F1_MOTORSPORT_NEWS_URL", f"{F1_BASE_URL}/f1/news/"), "formula1", "Motorsport.com", "news"),
